@@ -2008,17 +2008,7 @@ summary:focus-visible {
   margin-top: var(--space-16);
   font-size: 11px;
 }
-.app-footer {
-  margin: var(--space-16) var(--page-padding) 0;
-  padding: var(--space-24) 0;
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-20);
-  color: var(--subtle);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  border-top: 1px solid var(--border);
-}
+
 .tooltip-wrap {
   display: inline-flex;
   position: relative;
@@ -2512,9 +2502,6 @@ summary:focus-visible {
   .theme-options {
     gap: var(--space-8);
     padding: var(--space-12);
-  }
-  .app-footer {
-    font-size: 8px;
   }
   .reset-row {
     flex-direction: column;

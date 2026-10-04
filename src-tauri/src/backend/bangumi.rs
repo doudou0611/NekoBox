@@ -875,6 +875,7 @@ mod tests {
             )?;
             assert_eq!(saved.summary.name, "搜索期间创建的分组");
             let mut config = super::super::metadata_sources::Config::default();
+            config.sources[1].enabled = true;
             config.sources.swap(0, 1);
             config.sources[2].enabled = false;
             super::super::metadata_sources::save(&backend, config)?;

@@ -88,10 +88,52 @@ fn candidate(provider: &str, remote: &str) -> MetadataCandidate {
         cached: false,
     }
 }
+// Multi-source scenarios explicitly opt in instead of depending on production defaults.
+fn all_sources() -> Config {
+    let mut config = Config::default();
+    for source in &mut config.sources {
+        source.enabled = true;
+    }
+    config
+}
+#[test]
+fn default_only_enables_hikarinagi_and_saved_preferences_survive_reopen() {
+    let root = std::env::temp_dir().join(id());
+    let b = Backend::open(root.join("data")).unwrap();
+    let default = get(&b).unwrap();
+    assert_eq!(default.enabled(), vec!["hikarinagi"]);
+    assert_eq!(
+        default
+            .sources
+            .iter()
+            .map(|s| s.provider.as_str())
+            .collect::<Vec<_>>(),
+        vec!["hikarinagi", "bangumi", "vndb"]
+    );
+    assert!(b
+        .database()
+        .unwrap()
+        .setting::<Config>(SETTING)
+        .unwrap()
+        .is_none());
+    let mut saved = all_sources();
+    saved.sources.reverse();
+    saved.sources[2].enabled = false;
+    save(&b, saved.clone()).unwrap();
+    drop(b);
+    let reopened = Backend::open(root.join("data")).unwrap();
+    assert_eq!(get(&reopened).unwrap().enabled(), vec!["vndb", "bangumi"]);
+    assert_eq!(
+        serde_json::to_value(get(&reopened).unwrap()).unwrap(),
+        serde_json::to_value(saved).unwrap()
+    );
+    drop(reopened);
+    fs::remove_dir_all(root).unwrap();
+}
 #[test]
 fn config_requires_exact_providers_and_one_enabled() {
     let mut c = Config::default();
-    assert_eq!(c.enabled(), vec!["hikarinagi", "bangumi", "vndb"]);
+    assert_eq!(c.enabled(), vec!["hikarinagi"]);
     for s in &mut c.sources {
         s.enabled = false;
     }
@@ -104,7 +146,7 @@ fn config_requires_exact_providers_and_one_enabled() {
 #[test]
 fn supplementation_respects_disabled_source_snapshot_and_order_over_language() {
     let f = Fixture::new();
-    let mut config = Config::default();
+    let mut config = all_sources();
     config.sources[2].enabled = false;
     save(&f.b, config).unwrap();
     let calls = RefCell::new(vec![]);
@@ -115,7 +157,7 @@ fn supplementation_respects_disabled_source_snapshot_and_order_over_language() {
             calls.borrow_mut().push(q.provider.clone());
             let r = apply_fields(b, q, q.provider == "bangumi")?;
             if q.provider == "hikarinagi" {
-                let mut changed = Config::default();
+                let mut changed = all_sources();
                 changed.sources[0].enabled = false;
                 changed.sources[1].enabled = false;
                 save(&f.b, changed)?;
@@ -159,6 +201,7 @@ fn an_old_binding_does_not_hide_a_new_fetch_failure() {
 #[test]
 fn ambiguous_same_title_candidates_never_bind_another_work() {
     let f = Fixture::new();
+    save(&f.b, all_sources()).unwrap();
     let calls = RefCell::new(vec![]);
     let result = confirm_with(
         &f.b,
@@ -182,7 +225,7 @@ fn ambiguous_same_title_candidates_never_bind_another_work() {
 #[test]
 fn partial_cover_failure_keeps_fresh_metadata_and_can_use_next_source_cover() {
     let f = Fixture::new();
-    let mut config = Config::default();
+    let mut config = all_sources();
     config.sources[2].enabled = false;
     save(&f.b, config).unwrap();
     let result = confirm_with(
@@ -241,6 +284,7 @@ fn partial_cover_failure_keeps_fresh_metadata_and_can_use_next_source_cover() {
 #[test]
 fn detail_binding_failure_retries_only_unique_enabled_source_and_reports_actual_binding() {
     let f = Fixture::new();
+    save(&f.b, all_sources()).unwrap();
     let mut request = f.request();
     request.title_hint = Some("Shared Title".into());
     let calls = RefCell::new(vec![]);
@@ -272,7 +316,7 @@ fn detail_binding_failure_retries_only_unique_enabled_source_and_reports_actual_
 #[test]
 fn hikarinagi_bilingual_intro_is_preferred_before_later_source_chinese() {
     let f = Fixture::new();
-    let mut config = Config::default();
+    let mut config = all_sources();
     config.sources[2].enabled = false;
     save(&f.b, config).unwrap();
     confirm_with(&f.b,&f.request(),|b,q|{let r=apply_fields(b,q,q.provider=="bangumi")?;if q.provider=="hikarinagi"{b.database()?.apply_remote_fields(&q.game_id,&q.provider,&q.remote_id,&[("description_zh".into(),"女仆 Scarlet Ikaruga Wisteria 来到宿舍，主人公与她一起生活并结识了许多朋友。".into())],&[],&now(),false)?;}Ok(r)},|_,q|Ok(vec![candidate(&q.providers[0],"2")]),true).unwrap();
@@ -290,7 +334,7 @@ fn hikarinagi_bilingual_intro_is_preferred_before_later_source_chinese() {
 #[test]
 fn manual_binding_temporarily_enables_selected_source_and_preserves_global_config() {
     let f = Fixture::new();
-    let mut config = Config::default();
+    let mut config = all_sources();
     config.sources[0].enabled = false;
     config.sources.swap(1, 2);
     save(&f.b, config).unwrap();
@@ -332,6 +376,7 @@ fn manual_binding_temporarily_enables_selected_source_and_preserves_global_confi
 #[test]
 fn automatic_confirmation_keeps_settings_order_even_when_requested_source_is_last() {
     let f = Fixture::new();
+    save(&f.b, all_sources()).unwrap();
     let mut request = f.request();
     request.provider = "vndb".into();
     request.title_hint = Some("Shared Title".into());
@@ -363,7 +408,7 @@ fn automatic_confirmation_keeps_settings_order_even_when_requested_source_is_las
 #[test]
 fn manual_search_allows_disabled_source_without_saving_settings() {
     let f = Fixture::new();
-    let mut config = Config::default();
+    let mut config = all_sources();
     config.sources[0].enabled = false;
     save(&f.b, config).unwrap();
     let mut request = SearchMetadataRequest {

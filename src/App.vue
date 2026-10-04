@@ -344,16 +344,6 @@ onUnmounted(() => {
           </Transition>
         </RouterView>
       </main>
-      <footer class="app-footer">
-        <span>{{
-          desktop
-            ? local.status
-              ? `数据目录：${local.status.data_directory}`
-              : '正在连接本地数据库'
-            : '一个等待审阅的作品展厅 · 自制 SVG / 离线演示'
-        }}</span>
-        ><span>Windows 待实测</span>
-      </footer>
     </div>
     <SharedTransitionLayer /><PreviewFeedback /><GameDragOverlay />
     <AccountDialog

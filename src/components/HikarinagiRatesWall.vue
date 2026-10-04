@@ -5,6 +5,9 @@ import { api, desktop, errorText, local } from '../stores/library';
 import type { GameDetail } from '../types/domain';
 import {
   createRatesLoader,
+  hasHikarinagiRates,
+  metadataRatesFallback,
+  type MetadataRatesFallback,
   type RatesWallState,
 } from '../services/hikarinagiRates';
 const props = defineProps<{ gameId: string }>();
@@ -20,6 +23,44 @@ const loader = createRatesLoader(
   (game_id, refresh) => api('get_hikarinagi_rates', { game_id, refresh }),
   errorText,
 );
+const metadataSnapshot = ref<{
+  game_id: string;
+  fallback: MetadataRatesFallback | null;
+}>({ game_id: '', fallback: null });
+watch(
+  [
+    () => props.gameId,
+    () => (local.records[props.gameId] as GameDetail | undefined)?.metadata,
+  ],
+  ([game_id, fields]) => {
+    if (fields) {
+      metadataSnapshot.value = {
+        game_id,
+        fallback: metadataRatesFallback(fields),
+      };
+    } else if (metadataSnapshot.value.game_id !== game_id) {
+      metadataSnapshot.value = { game_id, fallback: null };
+    }
+  },
+  { immediate: true, deep: true },
+);
+const fallback = computed(() =>
+  desktop &&
+  !state.loading &&
+  metadataSnapshot.value.game_id === props.gameId &&
+  !hasHikarinagiRates(state.wall)
+    ? metadataSnapshot.value.fallback
+    : null,
+);
+const average = computed(
+  () => fallback.value?.average ?? state.wall?.average ?? null,
+);
+const keywords = computed(() =>
+  fallback.value
+    ? fallback.value.tags.map((word) => ({ word, count: null }))
+    : (state.wall?.keywords ?? []),
+);
+const sourceLabel = computed(() => fallback.value?.label ?? 'Hikarinagi');
 watch(
   [
     () => props.gameId,
@@ -34,7 +75,12 @@ watch(
             (field) =>
               field.provider === 'hikarinagi' && !field.manually_edited,
           )
-          .map((field) => [field.field, field.value, field.fetched_at]),
+          .map((field) => [
+            field.remote_id,
+            field.field,
+            field.value,
+            field.fetched_at,
+          ]),
       );
     },
   ],
@@ -80,8 +126,11 @@ const statuses = computed(() =>
     .filter((row) => row.count > 0),
 );
 const fetchedTime = computed(() => {
-  if (!state.wall) return '';
-  return new Date(state.wall.fetched_at).toLocaleString('zh-CN', {
+  const timestamp = fallback.value
+    ? fallback.value.fetched_at
+    : state.wall?.fetched_at;
+  if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return '';
+  return new Date(timestamp).toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -128,24 +177,22 @@ const fetchedTime = computed(() => {
     <p v-else-if="!desktop" class="wall-empty">
       浏览器预览不获取社区评分。桌面版会展示已匹配作品的 Hikarinagi 安利墙。
     </p>
-    <p v-else-if="!state.wall && !state.error" class="wall-empty">
+    <p v-else-if="!state.wall && !fallback && !state.error" class="wall-empty">
       此作品尚未匹配 Hikarinagi，请先在「资料」中匹配作品。
     </p>
-    <p v-if="state.error" class="wall-error" role="alert">{{ state.error }}</p>
-    <template v-if="state.wall">
+    <p v-if="state.error && !fallback" class="wall-error" role="alert">
+      {{ state.error }}
+    </p>
+    <template v-if="state.wall || fallback">
       <div class="wall-rating">
-        <strong>{{
-          state.wall.average == null ? '—' : state.wall.average.toFixed(1)
-        }}</strong
+        <strong>{{ average == null ? '—' : average.toFixed(1) }}</strong
         ><span>/ 10</span>
       </div>
       <div
         class="wall-stars"
         role="img"
         :aria-label="
-          state.wall.average == null
-            ? '暂无评分'
-            : `${state.wall.average.toFixed(1)} 分，满分 10 分`
+          average == null ? '暂无评分' : `${average.toFixed(1)} 分，满分 10 分`
         "
       >
         <svg
@@ -153,16 +200,21 @@ const fetchedTime = computed(() => {
           :key="index"
           viewBox="0 0 24 24"
           aria-hidden="true"
-          :class="{ filled: index <= Math.round(state.wall.average ?? 0) }"
+          :class="{ filled: index <= Math.round(average ?? 0) }"
         >
           <path
             d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3.1-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9Z"
           />
         </svg>
       </div>
-      <p class="wall-rater-count">{{ state.wall.rated_count }} 人评分</p>
+      <p v-if="fallback" class="wall-rater-count">
+        Hikarinagi 暂无可用评分与标签，显示 {{ sourceLabel }} 资料。
+      </p>
+      <p v-else-if="state.wall" class="wall-rater-count">
+        {{ state.wall.rated_count }} 人评分
+      </p>
       <div
-        v-if="showHistogram"
+        v-if="!fallback && showHistogram"
         class="wall-histogram"
         role="img"
         :aria-label="`评分分布：${bars.map((bar) => `${bar.score} 分 ${bar.count} 人`).join('，')}`"
@@ -181,6 +233,7 @@ const fetchedTime = computed(() => {
         </div>
       </div>
       <button
+        v-if="!fallback"
         class="wall-rating-action"
         title="使用已登录的 Hikarinagi 账号评分与评论"
         @click="reviewDialog?.open()"
@@ -191,30 +244,41 @@ const fetchedTime = computed(() => {
           /></svg
         >我来评分
       </button>
-      <dl v-if="statuses.length" class="wall-statuses">
+      <dl v-if="!fallback && statuses.length" class="wall-statuses">
         <div v-for="status in statuses" :key="status.key">
           <dt>{{ status.label }}</dt>
           <dd>{{ status.count }}</dd>
         </div>
       </dl>
       <ul
-        v-if="state.wall.keywords.length"
+        v-if="keywords.length"
         class="wall-keywords"
-        aria-label="Hikarinagi 安利墙热门标签"
+        :aria-label="`${sourceLabel} 安利墙热门标签`"
       >
-        <li v-for="keyword in state.wall.keywords" :key="keyword.word">
+        <li v-for="keyword in keywords" :key="keyword.word">
           <span aria-hidden="true">#</span><span>{{ keyword.word }}</span
-          ><strong>{{ keyword.count }}</strong>
+          ><strong v-if="keyword.count != null">{{ keyword.count }}</strong>
         </li>
       </ul>
-      <p v-if="state.wall.message" class="wall-error" role="status">
+      <p
+        v-if="!fallback && state.wall?.message"
+        class="wall-error"
+        role="status"
+      >
         {{ state.wall.message }}
       </p>
       <footer class="wall-source">
-        来源：Hikarinagi<br />{{ state.wall.cached ? '缓存于' : '更新于' }}
-        {{ fetchedTime }}{{ state.wall.stale ? ' · 待更新' : '' }}<br /><span
-          >Hikarinagi 社区评分</span
+        来源：{{ sourceLabel }}<br />
+        <template v-if="fallback"
+          >本地刮削快照<template v-if="fetchedTime">
+            · {{ fetchedTime }}</template
+          ></template
         >
+        <template v-else-if="state.wall"
+          >{{ state.wall.cached ? '缓存于' : '更新于' }} {{ fetchedTime
+          }}{{ state.wall.stale ? ' · 待更新' : '' }}</template
+        >
+        <br /><span>{{ sourceLabel }} 社区评分</span>
       </footer>
     </template>
   </aside>

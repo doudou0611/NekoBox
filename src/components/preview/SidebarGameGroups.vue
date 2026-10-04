@@ -27,6 +27,10 @@ import {
 } from '../../services/libraryContextActions';
 import PreviewIcon from './PreviewIcon.vue';
 import {
+  COMPACT_GAME_ORDER,
+  orderedSidebarGames,
+} from '../../services/sidebarGameOrder';
+import {
   armGameDrag,
   gameDrag,
   gameDropCompleted,
@@ -51,7 +55,27 @@ const games = computed(() =>
     ? []
     : [...preview.games].sort((a, b) => b.added_order - a.added_order),
 );
-const groups = computed(() => sidebarGroups(games.value, preview.groups));
+const compactGames = computed(() =>
+  orderedSidebarGames(games.value, COMPACT_GAME_ORDER),
+);
+const groups = computed(() =>
+  sidebarGroups(games.value, preview.groups).map((group) => ({
+    ...group,
+    games: orderedSidebarGames(group.games, group.group_id),
+  })),
+);
+function gameSortClass(groupId: string, gameId: string) {
+  const state = gameDrag.value;
+  const target =
+    state?.action === 'sort' &&
+    state.allowed &&
+    state.group_id === groupId &&
+    state.target_id === gameId;
+  return {
+    'game-sort-before': target && state.placement === 'before',
+    'game-sort-after': target && state.placement === 'after',
+  };
+}
 const active_game_id = computed(() =>
   route.name === 'game-detail' ? String(route.params.game_id ?? '') : '',
 );
@@ -414,7 +438,9 @@ function onEditorKeydown(event: KeyboardEvent) {
             sortPlacement === 'after' &&
             drag_group !== group.group_id,
           'is-game-drop-target':
-            gameDrag?.group_id === group.group_id && gameDrag.allowed,
+            gameDrag?.action === 'add' &&
+            gameDrag.group_id === group.group_id &&
+            gameDrag.allowed,
         }"
         :aria-label="`${group.name}分组`"
       >
@@ -503,7 +529,12 @@ function onEditorKeydown(event: KeyboardEvent) {
           >
             <RouterLink
               class="group-game"
-              :class="{ 'is-selected': active_game_id === game.game_id }"
+              :class="[
+                { 'is-selected': active_game_id === game.game_id },
+                gameSortClass(group.group_id, game.game_id),
+              ]"
+              :data-game-sort-group="group.group_id"
+              :data-game-sort-id="game.game_id"
               :to="{ name: 'game-detail', params: { game_id: game.game_id } }"
               :aria-label="`打开${game.title}详情`"
               :draggable="false"
@@ -544,7 +575,7 @@ function onEditorKeydown(event: KeyboardEvent) {
     </div>
     <div v-else class="groups-scroll compact-games" aria-label="演示游戏列表">
       <LibraryContextMenu
-        v-for="game in games"
+        v-for="game in compactGames"
         :key="game.game_id"
         :label="`${game.title}作品操作`"
         game
@@ -555,7 +586,12 @@ function onEditorKeydown(event: KeyboardEvent) {
       >
         <RouterLink
           class="group-game"
-          :class="{ 'is-selected': active_game_id === game.game_id }"
+          :class="[
+            { 'is-selected': active_game_id === game.game_id },
+            gameSortClass(COMPACT_GAME_ORDER, game.game_id),
+          ]"
+          :data-game-sort-group="COMPACT_GAME_ORDER"
+          :data-game-sort-id="game.game_id"
           :to="{ name: 'game-detail', params: { game_id: game.game_id } }"
           :aria-label="`打开${game.title}详情`"
           :title="game.title"
@@ -835,6 +871,7 @@ function onEditorKeydown(event: KeyboardEvent) {
   cursor: not-allowed;
 }
 .group-game {
+  position: relative;
   content-visibility: auto;
   contain-intrinsic-size: auto 54px;
   display: flex;
@@ -850,6 +887,23 @@ function onEditorKeydown(event: KeyboardEvent) {
 .group-game:hover {
   color: var(--text);
   background: var(--surface-hover);
+}
+.group-game.game-sort-before::after,
+.group-game.game-sort-after::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.group-game.game-sort-before::after {
+  top: 0;
+}
+.group-game.game-sort-after::after {
+  bottom: 0;
 }
 .group-game.is-selected {
   color: var(--text);

@@ -1,6 +1,6 @@
 {
   "name": "galgame-manager",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
@@ -20,6 +20,7 @@
     "test": "vitest run && node --test scripts/release-update.test.mjs",
     "test:watch": "vitest",
     "test:browser": "node scripts/verify-preview.mjs",
+    "test:gallery-transitions": "node scripts/verify-gallery-transitions.mjs",
     "test:activity": "node scripts/verify-activity.mjs",
     "test:metadata-search": "node scripts/verify-metadata-search.mjs",
     "test:screenshots": "node scripts/verify-screenshots.mjs",

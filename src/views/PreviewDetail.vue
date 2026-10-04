@@ -121,8 +121,8 @@ function moveTab(event: KeyboardEvent) {
               ><strong v-else>暂无评分</strong></span
             >
             <span
-              ><small>发行商</small
-              ><strong>{{ game.publisher || '发行商待补充' }}</strong></span
+              ><small>开发商</small
+              ><strong>{{ game.developer || '开发商待补充' }}</strong></span
             >
             <span
               ><small>发行日期</small

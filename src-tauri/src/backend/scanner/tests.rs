@@ -597,6 +597,21 @@ fn cached_exact_vndb_match_is_applied_automatically() {
         .unwrap()
         .save_metadata_cache("vndb", "Kanon", Some(&response), "success", None, &now())
         .unwrap();
+    // The cached VNDB response remains unused until that source is explicitly enabled.
+    automatic_metadata_match(&f.backend, &game.summary.id, "Kanon").unwrap();
+    assert_eq!(
+        f.backend
+            .database()
+            .unwrap()
+            .get_game(&game.summary.id)
+            .unwrap()
+            .summary
+            .metadata_status,
+        crate::domain::protocol::MetadataStatus::LocalOnly
+    );
+    let mut sources = metadata_sources::Config::default();
+    sources.sources[2].enabled = true;
+    metadata_sources::save(&f.backend, sources).unwrap();
     automatic_metadata_match(&f.backend, &game.summary.id, "Kanon").unwrap();
     let detail = f
         .backend

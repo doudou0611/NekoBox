@@ -2,6 +2,7 @@
 import {
   computed,
   nextTick,
+  onBeforeUpdate,
   onMounted,
   onUnmounted,
   ref,
@@ -50,6 +51,51 @@ const range = computed(() =>
 const visible = computed(() =>
   props.games.slice(range.value.start, range.value.end),
 );
+type CardLayout = { left: number; top: number; width: number; height: number };
+const cardLayouts = new WeakMap<HTMLElement, CardLayout>();
+const leaveStyles = new WeakMap<HTMLElement, Record<string, string>>();
+function cardLayout(element: HTMLElement): CardLayout {
+  const bounds = element.getBoundingClientRect();
+  const parent = element.offsetParent?.getBoundingClientRect();
+  return {
+    left: bounds.left - (parent?.left ?? 0),
+    top: bounds.top - (parent?.top ?? 0),
+    width: bounds.width,
+    height: bounds.height,
+  };
+}
+// Capture every card before patching: removing earlier siblings changes grid positions.
+onBeforeUpdate(() => {
+  const gallery = stage.value?.querySelector('.gallery-stage');
+  if (!gallery || gallery.classList.contains('virtual-gallery')) return;
+  for (const child of gallery.children) {
+    if (
+      child instanceof HTMLElement &&
+      child.classList.contains('context-card') &&
+      !leaveStyles.has(child)
+    )
+      cardLayouts.set(child, cardLayout(child));
+  }
+});
+function freezeLeavingCard(element: Element) {
+  if (!(element instanceof HTMLElement)) return;
+  const layout = cardLayouts.get(element) ?? cardLayout(element);
+  const saved: Record<string, string> = {};
+  for (const property of ['left', 'top', 'width', 'height'] as const) {
+    saved[property] = element.style[property];
+    element.style[property] = `${layout[property]}px`;
+  }
+  leaveStyles.set(element, saved);
+}
+function restoreLeavingCard(element: Element) {
+  if (!(element instanceof HTMLElement)) return;
+  const saved = leaveStyles.get(element);
+  if (!saved) return;
+  for (const property of ['left', 'top', 'width', 'height'] as const)
+    element.style[property] = saved[property] ?? '';
+  leaveStyles.delete(element);
+  cardLayouts.delete(element);
+}
 let frame = 0;
 let observer: ResizeObserver | null = null;
 function measure() {
@@ -123,6 +169,9 @@ onUnmounted(() => {
       aria-label="作品列表"
       :data-total-games="games.length"
       :data-rendered-games="visible.length"
+      @before-leave="freezeLeavingCard"
+      @after-leave="restoreLeavingCard"
+      @leave-cancelled="restoreLeavingCard"
     >
       <div
         v-if="range.top"

@@ -16,6 +16,7 @@ export interface AppSettings {
   proxy_enabled: boolean;
   proxy_mode: 'system' | 'manual';
   proxy_url: string;
+  sidebar_game_order: Record<string, string[]>;
 }
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'light',
@@ -34,4 +35,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   proxy_enabled: false,
   proxy_mode: 'system',
   proxy_url: '',
+  sidebar_game_order: {},
 };

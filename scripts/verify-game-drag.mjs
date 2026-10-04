@@ -137,6 +137,81 @@ try {
   console.log(
     '通过：系统组拒绝直接加成员、Esc取消、组外放下和外部文字不修改分组',
   );
+  assert.equal(await page.locator('.gallery-stage .card-number').count(), 0);
+  const rowIds = (name) =>
+    group(name)
+      .locator('[data-game-sort-id]')
+      .evaluateAll((rows) => rows.map((row) => row.dataset.gameSortId));
+  const sortGame = async (name, sourceId, targetId, placement) => {
+    const original = await rowIds(name);
+    const row = (id) => group(name).locator(`[data-game-sort-id="${id}"]`);
+    await begin(row(sourceId));
+    await row(targetId).scrollIntoViewIfNeeded();
+    const b = await row(targetId).boundingBox();
+    await page.mouse.move(
+      b.x + b.width / 2,
+      b.y + b.height * (placement === 'before' ? 0.2 : 0.8),
+      { steps: 8 },
+    );
+    assert(
+      await row(targetId).evaluate(
+        (el, side) => el.classList.contains(`game-sort-${side}`),
+        placement,
+      ),
+    );
+    if (name === '收藏')
+      await group(name).screenshot({
+        path: resolve(evidence, 'game-sort-indicator.png'),
+      });
+    await page.mouse.up();
+    const expected = original.filter((id) => id !== sourceId);
+    expected.splice(
+      expected.indexOf(targetId) + (placement === 'after' ? 1 : 0),
+      0,
+      sourceId,
+    );
+    await page.waitForFunction(async () => {
+      const { gameDropBusy } = await import('/src/services/gameDrag.ts');
+      return !gameDropBusy.value;
+    });
+    assert.deepEqual(await rowIds(name), expected);
+    assert.equal(new URL(page.url()).hash, '#/games');
+    const stored = await page.evaluate(async (name) => {
+      const { appSettings } = await import('/src/stores/settings.ts');
+      const { preview } = await import('/src/stores/library.ts');
+      const id =
+        name === '收藏'
+          ? 'favorites'
+          : name === '未分组'
+            ? 'ungrouped'
+            : preview.groups.find((g) => g.name === name).group_id;
+      return appSettings.value.sidebar_game_order[id];
+    }, name);
+    assert.deepEqual(stored, expected);
+  };
+  await sortGame('拖入甲组', 'demo-sky', 'demo-shore', 'before');
+  await sortGame('拖入甲组', 'demo-sky', 'demo-shore', 'after');
+  await sortGame('收藏', 'demo-snow', 'demo-shore', 'before');
+  const ungrouped = await rowIds('未分组');
+  await sortGame('未分组', ungrouped[1], ungrouped[0], 'before');
+  assert.equal(await group('拖入甲组').getByRole('link').count(), 2);
+  const favoriteOrder = await rowIds('收藏');
+  await begin(group('收藏').locator('[data-game-sort-id="demo-shore"]'));
+  const cancelBox = await group('收藏')
+    .locator('[data-game-sort-id="demo-forest"]')
+    .boundingBox();
+  await page.mouse.move(cancelBox.x + 20, cancelBox.y + 8);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  assert.deepEqual(await rowIds('收藏'), favoriteOrder);
+  // Route changes and library refreshes must not reset the saved display order.
+  await target('拖入乙组').click();
+  await target('拖入甲组').click();
+  assert.deepEqual(await rowIds('收藏'), favoriteOrder);
+  await rail.getByRole('link', { name: '游戏', exact: true }).click();
+  console.log(
+    '通过：移除封面标记、普通组/收藏/未分组排序、前后插入、保存、取消与跨页保持',
+  );
   await page.evaluate(async () => {
     const { saveSmartCollection, query } =
       await import('/src/stores/library.ts');
@@ -152,6 +227,7 @@ try {
   );
   await page.mouse.up();
   assert.equal(await group('智能拖入验收').getByRole('link').count(), 3);
+  await sortGame('智能拖入验收', 'demo-snow', 'demo-shore', 'before');
   await begin(source('demo-shore'));
   const original = await source('demo-shore').boundingBox();
   await page.mouse.move(original.x + original.width / 2, original.y + 35, {
@@ -168,6 +244,9 @@ try {
   await page.goto(`${base}/#/games`);
   await source('demo-shore').click();
   await page.waitForURL('**/#/games/demo-shore');
+  await page.waitForFunction(
+    () => !document.querySelector('.page-leave-active'),
+  );
   await page.getByRole('button', { name: '返回原展廊位置' }).click();
   await page.waitForURL('**/#/games');
   // Group ordering uses the same native-safe Pointer interaction.
@@ -211,6 +290,46 @@ try {
   const names = await rail.locator('.game-group .group-name').allTextContents();
   assert(names.indexOf('拖入乙组') < names.indexOf('拖入甲组'));
   console.log('通过：普通点击、游戏右键管理、详情返回与 Pointer 组排序');
+  await rail
+    .getByRole('button', { name: '收起游戏总览侧栏', exact: true })
+    .click();
+  const compact = page.locator('.compact-games');
+  const compactIds = await compact
+    .locator('[data-game-sort-id]')
+    .evaluateAll((rows) => rows.map((row) => row.dataset.gameSortId));
+  await begin(compact.locator(`[data-game-sort-id="${compactIds.at(-1)}"]`));
+  const firstBox = await compact
+    .locator('[data-game-sort-id]')
+    .first()
+    .boundingBox();
+  await page.mouse.move(
+    firstBox.x + firstBox.width / 2,
+    firstBox.y + firstBox.height * 0.2,
+    { steps: 10 },
+  );
+  assert(
+    await compact
+      .locator('[data-game-sort-id]')
+      .first()
+      .evaluate((el) => el.classList.contains('game-sort-before')),
+  );
+  await page.mouse.up();
+  await page.waitForFunction(async () => {
+    const { gameDropBusy } = await import('/src/services/gameDrag.ts');
+    return !gameDropBusy.value;
+  });
+  assert.equal(
+    await compact
+      .locator('[data-game-sort-id]')
+      .first()
+      .getAttribute('data-game-sort-id'),
+    compactIds.at(-1),
+  );
+  assert.equal(new URL(page.url()).hash, '#/games');
+  await rail
+    .getByRole('button', { name: '展开游戏总览侧栏', exact: true })
+    .click();
+  console.log('通过：收起侧栏后的图标列表也可排序，拖动不打开详情');
   await page.setViewportSize({ width: 800, height: 650 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await begin(source('demo-shore'));

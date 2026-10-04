@@ -8,7 +8,7 @@ export interface MetadataSource {
 export const metadataSources = reactive({
   sources: ['hikarinagi', 'bangumi', 'vndb'].map((provider) => ({
     provider: provider as MetadataProvider,
-    enabled: true,
+    enabled: provider === 'hikarinagi',
   })),
   loaded: false,
 });

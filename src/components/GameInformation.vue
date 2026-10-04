@@ -19,7 +19,6 @@ import PreviewCover from './preview/PreviewCover.vue';
 import PreviewIcon from './preview/PreviewIcon.vue';
 import MetadataMatch from './MetadataMatch.vue';
 import ScreenshotScanPanel from './ScreenshotScanPanel.vue';
-import PersonalProfile from './PersonalProfile.vue';
 import SourcesPanel from './SourcesPanel.vue';
 import SettingsSwitch from './settings/SettingsSwitch.vue';
 const props = defineProps<{ gameId: string }>();
@@ -382,31 +381,6 @@ function reload() {
       <ScreenshotScanPanel v-if="desktop" :game-id="gameId" compact />
       <p v-else class="workspace-empty">浏览器原型不扫描真实安装目录。</p>
     </section>
-    <details v-if="desktop" class="workspace-extra">
-      <summary>个人评分、标签与库记录</summary>
-      <PersonalProfile :game-id="gameId" /><button
-        class="quiet-button"
-        @click="
-          preview.dialog = {
-            title: '移除此游戏的库记录？',
-            description:
-              '先保存数据库安全快照，再移除库记录。本地游戏、存档与备份文件保留。',
-            confirm_label: '确认移除库记录',
-            action: () => {
-              void api('remove_game', { id: gameId, confirmed: true })
-                .then(async () => {
-                  const { refreshLibrary } = await import('../stores/library');
-                  await refreshLibrary();
-                  notify('库记录已移除，本地文件保留。');
-                })
-                .catch((e) => notify(errorText(e)));
-            },
-          }
-        "
-      >
-        移除库记录（保留本地文件）
-      </button>
-    </details>
     <div
       v-if="desktop"
       class="workspace-save-bar"

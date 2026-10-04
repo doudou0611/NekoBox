@@ -254,9 +254,7 @@ pub fn search(
                 title: title.clone(),
                 subtitle,
                 cover_url,
-                has_chinese_description: super::metadata_text::has_chinese_description(
-                    text(item, "trans_intro").as_deref(),
-                ),
+                has_chinese_description: translated_intro_hint(item),
                 confidence: confidence(query, &title, text(item, "subtitle").as_deref()),
                 matched_fields: vec!["title".into()],
                 explanation: "Hikarinagi 搜索结果，需人工确认".into(),
@@ -361,17 +359,23 @@ pub fn confirm(
     Ok(result)
 }
 
+fn translated_intro_hint(data: &Value) -> Option<bool> {
+    // Search payloads may omit intros. Omission is unknown, not absence.
+    data.get("trans_intro")
+        .map(|_| text(data, "trans_intro").is_some())
+}
+
 fn intro_fields(data: &Value) -> Vec<(String, String)> {
     let mut fields = super::metadata_text::description_fields(text(data, "origin_intro"));
     if let Some(translated) = text(data, "trans_intro") {
-        // A translated field may still contain Japanese or English; do not
-        // label it Chinese based on the field name alone.
-        for (name, value) in super::metadata_text::description_fields(Some(translated)) {
-            if name == "description_zh" || !fields.iter().any(|(field, _)| field == &name) {
-                fields.retain(|(field, _)| field != &name);
-                fields.push((name, value));
-            }
+        // Match the official site's trans_intro || origin_intro rule. Names,
+        // quotations and punctuation never change the authoritative field choice.
+        let translated = translated.replace("\r\n", "\n");
+        fields.retain(|(field, _)| field != "description_zh");
+        if !fields.iter().any(|(field, _)| field == "description") {
+            fields.push(("description".into(), translated.clone()));
         }
+        fields.push(("description_zh".into(), translated));
     }
     fields
 }
@@ -379,6 +383,161 @@ fn intro_fields(data: &Value) -> Vec<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn translated_intro_matches_the_website_without_language_heuristics() {
+        for translated in [
+            "主人公遇见アトリ，一起踏上旅途。",
+            "中文简介引用了台词「ただいま」。",
+            "私立赞咲良 （さんさら）的故事。",
+            "私立赞咲良〔さんさら〕的故事。",
+            "私立赞咲良（さんさら ）的故事。",
+            "主角・莲佛雪之进的故事。",
+            "Brain-machine Interface，简称BMI，是连接大脑和机器的技术。",
+            "Scarlet Ikaruga Wisteria 的故事。",
+            "😀✨",
+            "Official translated field in English.",
+            "公式翻訳フィールドの文章。",
+            "第一段中文。\r\n第二段中文与日文名アトリ。",
+        ] {
+            let data = serde_json::json!({
+                "origin_intro": "主人公は高校生。",
+                "trans_intro": translated,
+            });
+            assert_eq!(translated_intro_hint(&data), Some(true));
+            let expected = translated.replace("\r\n", "\n");
+            let fields = intro_fields(&data);
+            assert!(fields.contains(&("description_zh".into(), expected.clone())));
+            assert!(fields.contains(&("description".into(), "主人公は高校生。".into())));
+
+            // The database previously repeated language detection, so parsing alone
+            // could not guarantee that the selected source prose reached the UI.
+            let mut db = crate::database::Database::in_memory().unwrap();
+            let game = db
+                .import_installation(
+                    "/fixture/hikari-mixed-intro",
+                    "作品",
+                    None,
+                    crate::domain::protocol::InstallSource::Manual,
+                    &[],
+                    "fixture",
+                )
+                .unwrap();
+            db.apply_remote_fields(&game, "hikarinagi", "456", &fields, &[], &now(), true)
+                .unwrap();
+            assert_eq!(
+                db.get_game(&game).unwrap().description.as_deref(),
+                Some(expected.as_str())
+            );
+            db.save_translation_config(&super::super::translation::Settings {
+                enabled: true,
+                ..Default::default()
+            })
+            .unwrap();
+            db.apply_translation_fields(
+                &game,
+                &[(
+                    "hikarinagi".into(),
+                    "description".into(),
+                    "description_zh_translation".into(),
+                    "旧机器译文。".into(),
+                )],
+            )
+            .unwrap();
+            assert_eq!(
+                db.get_game(&game).unwrap().description.as_deref(),
+                Some(expected.as_str())
+            );
+        }
+    }
+
+    #[test]
+    fn absent_translated_intro_has_an_explicit_original_fallback() {
+        assert_eq!(translated_intro_hint(&serde_json::json!({})), None);
+        for translated in [
+            Value::Null,
+            serde_json::json!(""),
+            serde_json::json!(" \r\n "),
+            serde_json::json!(123),
+        ] {
+            let data =
+                serde_json::json!({"origin_intro": "主人公は高校生。", "trans_intro": translated});
+            assert_eq!(translated_intro_hint(&data), Some(false));
+            assert_eq!(
+                intro_fields(&data),
+                vec![("description".into(), "主人公は高校生。".into())]
+            );
+        }
+        let fields = intro_fields(&serde_json::json!({"trans_intro": "中文简介中的アトリ。"}));
+        assert!(fields.contains(&("description".into(), "中文简介中的アトリ。".into())));
+        assert!(fields.contains(&("description_zh".into(), "中文简介中的アトリ。".into())));
+        assert!(intro_fields(&serde_json::json!({})).is_empty());
+    }
+
+    #[test]
+    fn real_bilingual_intros_keep_chinese_readings_on_import_and_refresh() {
+        // Public v3 intro fields captured on 2026-10-04: a reading (793),
+        // a Japanese middle dot (794), Latin terminology (785), and plain Chinese (789).
+        for fixture in [
+            include_str!("fixtures/hikarinagi-793-intro.json"),
+            include_str!("fixtures/hikarinagi-789-intro.json"),
+            include_str!("fixtures/hikarinagi-794-intro.json"),
+            include_str!("fixtures/hikarinagi-785-intro.json"),
+        ] {
+            let data: Value = serde_json::from_str(fixture).unwrap();
+            let remote_id = data["id"].as_i64().unwrap().to_string();
+            let translated = text(&data, "trans_intro").unwrap();
+            assert_eq!(
+                translated_intro_hint(&data),
+                Some(true),
+                "Chinese search hint for Hikarinagi {remote_id}"
+            );
+            let fields = intro_fields(&data);
+            let mut db = crate::database::Database::in_memory().unwrap();
+            let game = db
+                .import_installation(
+                    &format!("/fixture/hikari-{remote_id}"),
+                    "作品",
+                    None,
+                    crate::domain::protocol::InstallSource::Manual,
+                    &[],
+                    "fixture",
+                )
+                .unwrap();
+            db.apply_remote_fields(&game, "hikarinagi", &remote_id, &fields, &[], &now(), true)
+                .unwrap();
+            assert_eq!(
+                db.get_game(&game).unwrap().description.as_deref(),
+                Some(translated.as_str()),
+                "Imported description for Hikarinagi {remote_id}"
+            );
+
+            // Reproduce the old parser's stored Japanese selection, then refresh.
+            let old_fields = [("description".into(), text(&data, "origin_intro").unwrap())];
+            db.apply_remote_fields(
+                &game,
+                "hikarinagi",
+                &remote_id,
+                &old_fields,
+                &[],
+                &now(),
+                true,
+            )
+            .unwrap();
+            assert_ne!(
+                db.get_game(&game).unwrap().description.as_deref(),
+                Some(translated.as_str())
+            );
+            db.apply_remote_fields(&game, "hikarinagi", &remote_id, &fields, &[], &now(), true)
+                .unwrap();
+            assert_eq!(
+                db.get_game(&game).unwrap().description.as_deref(),
+                Some(translated.as_str()),
+                "Refreshed description for Hikarinagi {remote_id}"
+            );
+        }
+    }
+
     #[test]
     fn official_cdn_covers_are_allowed_but_credentials_and_lookalikes_are_rejected() {
         assert!(trusted_image(

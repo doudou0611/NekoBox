@@ -11,7 +11,7 @@ export function loadAppSettings(): Promise<void> {
   if (!desktop || appSettings.loaded) return Promise.resolve();
   return (loading ??= api('get_app_settings', {})
     .then((value) => {
-      appSettings.value = value;
+      appSettings.value = { ...DEFAULT_SETTINGS, ...value };
       appSettings.loaded = true;
     })
     .finally(() => {
@@ -30,7 +30,7 @@ export async function saveAppSettings(
       for (const key of keys) Object.assign(next, { [key]: value[key] });
       appSettings.value = desktop
         ? await api('save_app_settings', next)
-        : structuredClone(next);
+        : JSON.parse(JSON.stringify(next));
       return appSettings.value;
     });
   saving = operation;

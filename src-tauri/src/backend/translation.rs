@@ -384,7 +384,7 @@ fn pending(fields: &[SourcedField]) -> Vec<Pending> {
 }
 fn selected_language(text: &str, settings: &Settings) -> bool {
     let japanese = text.chars().any(|c| ('\u{3040}'..='\u{30ff}').contains(&c));
-    if metadata_text::is_complete_chinese_description(text) && !japanese {
+    if metadata_text::is_complete_chinese_description(text) {
         return false;
     }
     settings.languages.iter().any(|v| {
@@ -442,8 +442,10 @@ fn pending_with(fields: &[SourcedField], settings: &Settings) -> Vec<Pending> {
                 || field.field.ends_with("_translation")
                 || value(field).is_some_and(|text| {
                     if name == "description_zh" {
-                        metadata_text::is_complete_chinese_description(&text)
-                            && !text.chars().any(|c| ('\u{3040}'..='\u{30ff}').contains(&c))
+                        // Hikarinagi's source-maintained trans_intro is already the
+                        // website's primary prose, even with foreign names or quotes.
+                        (field.provider == "hikarinagi" && field.field == "description_zh")
+                            || metadata_text::is_complete_chinese_description(&text)
                     } else {
                         field.field != "title_ja"
                             && metadata_text::is_chinese_description(&text)
@@ -691,6 +693,54 @@ mod tests {
             thread,
         )
     }
+    #[test]
+    fn source_hikarinagi_translated_intros_never_request_machine_retranslation() {
+        for fixture in [
+            include_str!("fixtures/hikarinagi-785-intro.json"),
+            include_str!("fixtures/hikarinagi-789-intro.json"),
+            include_str!("fixtures/hikarinagi-793-intro.json"),
+            include_str!("fixtures/hikarinagi-794-intro.json"),
+        ] {
+            let data: Value = serde_json::from_str(fixture).unwrap();
+            let fields = vec![
+                field(
+                    "hikarinagi",
+                    "description",
+                    data["origin_intro"].as_str().unwrap(),
+                    false,
+                ),
+                field(
+                    "hikarinagi",
+                    "description_zh",
+                    data["trans_intro"].as_str().unwrap(),
+                    false,
+                ),
+                field("vndb", "description", "An English story.", false),
+            ];
+            for language in ["all", "ja", "en"] {
+                let settings = Settings {
+                    languages: vec![language.into()],
+                    fields: vec!["description".into()],
+                    ..Settings::default()
+                };
+                assert!(
+                    pending_with(&fields, &settings).is_empty(),
+                    "ID {} language {language}",
+                    data["id"]
+                );
+            }
+        }
+        for translated in ["", "  "] {
+            let fields = vec![
+                field("hikarinagi", "description", "主人公は高校生。", false),
+                field("hikarinagi", "description_zh", translated, false),
+            ];
+            let planned = pending(&fields);
+            assert_eq!(planned.len(), 1);
+            assert_eq!(planned[0].field, "description");
+        }
+    }
+
     #[test]
     fn language_and_field_choices_keep_chinese_and_manual_values() {
         let fields = vec![

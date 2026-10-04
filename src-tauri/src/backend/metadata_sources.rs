@@ -22,7 +22,7 @@ impl Default for Config {
                 .into_iter()
                 .map(|s| Source {
                     provider: s.into(),
-                    enabled: true,
+                    enabled: s == "hikarinagi",
                 })
                 .collect(),
         }

@@ -1,17 +1,51 @@
 //! Keep source-maintained Chinese prose separate from untranslated summaries.
 
+fn is_han(character: char) -> bool {
+    ('\u{3400}'..='\u{4dbf}').contains(&character) || ('\u{4e00}'..='\u{9fff}').contains(&character)
+}
+
+fn is_kana(character: char) -> bool {
+    character != '\u{30fb}'
+        && (('\u{3040}'..='\u{30ff}').contains(&character)
+            || ('\u{ff66}'..='\u{ff9f}').contains(&character))
+}
+
+/// A short, balanced kana reading immediately after a Han name is an annotation,
+/// not the language of the surrounding prose (e.g. 赞咲良（さんさら）).
+fn reading_length(value: &str, closing: char) -> Option<usize> {
+    for (length, (index, character)) in value.char_indices().skip(1).enumerate() {
+        if character == closing {
+            return (length > 0).then_some(index + character.len_utf8());
+        }
+        if !is_kana(character) || length == 16 {
+            return None;
+        }
+    }
+    None
+}
+
 pub(crate) fn is_chinese_description(value: &str) -> bool {
     let mut chinese = 0;
     let mut other_letters = 0;
-    for character in value.chars() {
-        if ('\u{3040}'..='\u{30ff}').contains(&character)
-            || ('\u{ff66}'..='\u{ff9f}').contains(&character)
-        {
+    let mut previous = None;
+    let mut skip_until = 0;
+    for (index, character) in value.char_indices() {
+        if index < skip_until {
+            continue;
+        }
+        if previous.is_some_and(is_han) && matches!(character, '(' | '（') {
+            let closing = if character == '(' { ')' } else { '）' };
+            if let Some(length) = reading_length(&value[index..], closing) {
+                skip_until = index + length;
+                previous = None;
+                continue;
+            }
+        }
+        previous = Some(character);
+        if is_kana(character) {
             return false;
         }
-        if ('\u{3400}'..='\u{4dbf}').contains(&character)
-            || ('\u{4e00}'..='\u{9fff}').contains(&character)
-        {
+        if is_han(character) {
             chinese += 1;
         } else if character.is_alphabetic() {
             other_letters += 1;
@@ -64,6 +98,36 @@ pub(super) fn has_chinese_description(value: Option<&str>) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn allows_name_readings_in_chinese_but_rejects_japanese_prose() {
+        for chinese in [
+            "主角・莲佛雪之进一直以来都专心于武道的修行。",
+            "私立赞咲良（さんさら）学园的调查。",
+            "私立赞咲良(さんさら)学园的调查。",
+            "私立赞咲良（ｻﾝｻﾗ）学园的调查。",
+        ] {
+            assert!(is_chinese_description(chinese), "{chinese}");
+            assert!(is_complete_chinese_description(chinese));
+            assert_eq!(
+                description_fields(Some(chinese.into()))[0].0,
+                "description_zh"
+            );
+        }
+        for original in [
+            "私立讃咲良（さんさら）学園での調査。",
+            "私立赞咲良（さんさら）学园，彼女は同級生。",
+            "私立赞咲良（さんさら学园的调查。",
+            "私立赞咲良（さんさら)学园的调查。",
+            "私立赞咲良（さんさらです。）学园的调查。",
+            "主人公（彼女は学生）展开调查。",
+            "（さんさら）",
+            "（さんさら）学园的调查。",
+            "学园（あああああああああああああああああ）的调查。",
+        ] {
+            assert!(!is_chinese_description(original), "{original}");
+        }
+    }
 
     #[test]
     fn keeps_chinese_names_from_the_source_and_rejects_japanese_and_english() {

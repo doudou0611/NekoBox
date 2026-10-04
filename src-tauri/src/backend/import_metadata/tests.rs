@@ -10,6 +10,12 @@ impl Fixture {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!("gm-prepared-{}", id()));
         let backend = Backend::open(root.join("data")).unwrap();
+        // Existing Bangumi/multi-source fixtures explicitly retain their configured sources.
+        let mut sources = metadata_sources::Config::default();
+        for source in &mut sources.sources {
+            source.enabled = true;
+        }
+        metadata_sources::save(&backend, sources).unwrap();
         let directory = root.join("本地文件夹");
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("game.exe"), super::super::pe::fixture()).unwrap();
@@ -68,6 +74,11 @@ fn image(backend: &Backend) -> String {
     format!("covers/{filename}")
 }
 fn fill(stage: &Backend, request: &ConfirmMetadataMatchRequest) -> Result<Option<String>> {
+    // Production confirm() snapshots priority before applying fields; emulate the same boundary.
+    let priority = metadata_sources::get(stage)?.enabled();
+    stage
+        .database()?
+        .set_metadata_priority(&request.game_id, &priority)?;
     let cover = image(stage);
     stage.database()?.apply_remote_fields(
         &request.game_id,
@@ -391,8 +402,13 @@ fn cancellation_cleans_only_unreferenced_batch_downloads_and_rejects_late_writes
 #[test]
 fn batch_settings_are_snapshotted_even_after_global_reordering() {
     let f = Fixture::new();
+    let mut initial = metadata_sources::Config::default();
+    for source in &mut initial.sources {
+        source.enabled = true;
+    }
+    metadata_sources::save(&f.backend, initial.clone()).unwrap();
     let started = begin_batch(&f.backend).unwrap();
-    let mut changed = metadata_sources::Config::default();
+    let mut changed = initial;
     changed.sources.reverse();
     changed.sources[1].enabled = false;
     metadata_sources::save(&f.backend, changed.clone()).unwrap();

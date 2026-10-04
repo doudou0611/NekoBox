@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { PreviewGame } from '../../preview/data';
-import { toggleFavorite, desktop } from '../../stores/library';
+import { toggleFavorite } from '../../stores/library';
 import { motion_mode } from '../../composables/useMotionPolicy';
 import { openPreviewGame } from '../../composables/useSharedTransition';
 import PreviewCover from './PreviewCover.vue';
@@ -87,9 +87,6 @@ function updateTilt(event: PointerEvent) {
         :cover_url="game.cover_url"
         :title="game.title"
       />
-      <span class="card-number" aria-hidden="true">{{
-        desktop ? 'LOCAL' : String(game.added_order).padStart(2, '0')
-      }}</span>
       <span class="card-text"
         ><span class="card-subtitle" :title="game.subtitle">{{
           game.subtitle

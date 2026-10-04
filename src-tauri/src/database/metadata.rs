@@ -57,11 +57,16 @@ pub(super) fn source_order(connection: &rusqlite::Connection, game: &str) -> Res
             |r| r.get(0),
         )
         .optional()?;
-    let config: backend::metadata_sources::Config = global
-        .map(|s| serde_json::from_str(&s))
-        .transpose()
-        .map_err(|_| backend::invalid("来源设置无效。"))?
-        .unwrap_or_default();
+    // Historical records without saved preferences/priority retain their existing projection.
+    // This is a read-only fallback, matching DISPLAY_TITLE_SQL; it never enables network sources.
+    let Some(global) = global else {
+        return Ok(["hikarinagi", "bangumi", "vndb"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect());
+    };
+    let config: backend::metadata_sources::Config =
+        serde_json::from_str(&global).map_err(|_| backend::invalid("来源设置无效。"))?;
     config.validate()?;
     Ok(config.enabled())
 }
@@ -149,14 +154,9 @@ pub(super) fn sourced(
             let rank = (
                 !manually_edited,
                 source,
-                // Source order is ranked above language. Only Hikarinagi's
-                // own bilingual intro prefers verified Chinese over its original.
-                if provider == "hikarinagi"
-                    && field == "description_zh"
-                    && value
-                        .as_deref()
-                        .is_some_and(backend::metadata_text::is_chinese_description)
-                {
+                // Source order stays first. Within Hikarinagi, its authoritative
+                // trans_intro field wins without guessing the prose's language again.
+                if provider == "hikarinagi" && field == "description_zh" {
                     0
                 } else if field.ends_with("_translation") {
                     1

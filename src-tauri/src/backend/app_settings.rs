@@ -22,6 +22,7 @@ pub struct Settings {
     pub proxy_enabled: bool,
     pub proxy_mode: String,
     pub proxy_url: String,
+    pub sidebar_game_order: std::collections::BTreeMap<String, Vec<String>>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -42,11 +43,28 @@ impl Default for Settings {
             proxy_enabled: false,
             proxy_mode: "system".into(),
             proxy_url: String::new(),
+            sidebar_game_order: Default::default(),
         }
     }
 }
 impl Settings {
     pub fn validate(&self) -> Result<()> {
+        if self.sidebar_game_order.len() > 1024
+            || self
+                .sidebar_game_order
+                .values()
+                .map(Vec::len)
+                .sum::<usize>()
+                > 100_000
+            || self.sidebar_game_order.iter().any(|(group, games)| {
+                group.is_empty()
+                    || group.len() > 200
+                    || games.iter().any(|game| game.is_empty() || game.len() > 200)
+                    || games.iter().collect::<std::collections::HashSet<_>>().len() != games.len()
+            })
+        {
+            return Err(invalid("侧栏游戏排序无效。"));
+        }
         if !["light", "dark"].contains(&self.theme.as_str())
             || ![
                 "wisteria", "sea", "forest", "rose", "amber", "graphite", "black", "white", "jade",
@@ -107,6 +125,35 @@ pub fn save(b: &Backend, settings: Settings) -> Result<Settings> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn sidebar_order_defaults_and_persistence_preserve_other_preferences() {
+        let legacy: Settings = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
+        assert!(legacy.sidebar_game_order.is_empty());
+        let root = std::env::temp_dir().join(id());
+        let b = Backend::open(root.join("data")).unwrap();
+        let mut settings = legacy;
+        settings
+            .sidebar_game_order
+            .insert("favorites".into(), vec!["game-b".into(), "game-a".into()]);
+        save(&b, settings).unwrap();
+        drop(b);
+        let reopened = Backend::open(root.join("data")).unwrap();
+        let saved = get(&reopened).unwrap();
+        assert_eq!(saved.theme, "dark");
+        assert_eq!(saved.sidebar_game_order["favorites"], ["game-b", "game-a"]);
+        drop(reopened);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn sidebar_order_rejects_duplicate_and_empty_ids() {
+        let mut settings = Settings::default();
+        for games in [vec!["game-a".into(), "game-a".into()], vec![String::new()]] {
+            settings
+                .sidebar_game_order
+                .insert("favorites".into(), games);
+            assert!(settings.validate().is_err());
+        }
+    }
     #[test]
     fn reject_credential_urls_and_invalid_limits() {
         let mut s = Settings {

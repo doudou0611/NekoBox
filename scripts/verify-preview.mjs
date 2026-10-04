@@ -689,6 +689,55 @@ try {
       animations: 'disabled',
     });
   });
+  await step('详情展示开发商，已有发行商数据也不显示发行商字段', async () => {
+    await go('/games');
+    const id = await page.evaluate(async () => {
+      const { preview } = await import('/src/stores/library.ts');
+      const game = preview.games[0];
+      // Hikarinagi v3 /galgames/789, /793 and /794 returned developer=ωstar
+      // with no publisher field on 2026-10-04. Keep the two roles independent.
+      game.developer = 'ωstar';
+      game.publisher = undefined;
+      return game.game_id;
+    });
+    await page.locator(`[data-preview-open="gallery:${id}"]`).click();
+    await waitRoute('/games/' + id);
+    const meta = (label) =>
+      page.locator('.detail-meta > span').filter({
+        has: page.getByText(label, { exact: true }),
+      });
+    assert.equal(await meta('开发商').locator('strong').innerText(), 'ωstar');
+    assert.equal(await meta('发行商').count(), 0);
+    assert.equal(
+      await page.getByText('发行商待补充', { exact: true }).count(),
+      0,
+    );
+    await page.evaluate(async (gameId) => {
+      const { preview } = await import('/src/stores/library.ts');
+      preview.games.find((game) => game.game_id === gameId).publisher =
+        '测试发行公司';
+    }, id);
+    assert.equal(await meta('开发商').locator('strong').innerText(), 'ωstar');
+    assert.equal(await meta('发行商').count(), 0);
+    await page.setViewportSize({ width: 800, height: 900 });
+    assert.equal(await meta('开发商').locator('strong').innerText(), 'ωstar');
+    assert.equal(await meta('发行商').count(), 0);
+    assert(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    );
+    await page.evaluate(async (gameId) => {
+      const { preview } = await import('/src/stores/library.ts');
+      preview.games.find((game) => game.game_id === gameId).developer = '';
+    }, id);
+    assert.equal(
+      await meta('开发商').locator('strong').innerText(),
+      '开发商待补充',
+    );
+    assert.equal(await meta('发行商').count(), 0);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  });
   await step('千条游戏可见区域渲染、滚动、筛选及详情返回', async () => {
     await go('/games');
     await page.evaluate(async () => {

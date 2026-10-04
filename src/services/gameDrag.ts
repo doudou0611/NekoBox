@@ -1,6 +1,7 @@
 import { shallowRef } from 'vue';
-import { preview, notify } from '../stores/library';
+import { preview, notify, errorText } from '../stores/library';
 import { addLibraryGamesToGroup } from './gameBatch';
+import { moveSidebarGame, sidebarMembers } from './sidebarGameOrder';
 
 interface GameDrag {
   game_id: string;
@@ -10,6 +11,9 @@ interface GameDrag {
   group_id: string;
   hint: string;
   allowed: boolean;
+  action: 'add' | 'sort';
+  target_id: string;
+  placement: 'before' | 'after';
 }
 export const gameDrag = shallowRef<GameDrag | null>(null);
 export const gameDropBusy = shallowRef(false);
@@ -19,15 +23,49 @@ export function cancelGameDrag() {
   cancelPending?.();
 }
 
-function targetAt(x: number, y: number) {
-  const element = document
-    .elementFromPoint(x, y)
-    ?.closest<HTMLElement>('[data-game-drop-group]');
+function targetAt(x: number, y: number, sourceGroup: string, gameId: string) {
+  const hit = document.elementFromPoint(x, y);
+  const row = hit?.closest<HTMLElement>('[data-game-sort-id]');
+  const sortGroup = row?.dataset.gameSortGroup;
+  if (sourceGroup && row && sortGroup === sourceGroup) {
+    const targetId = row.dataset.gameSortId ?? '';
+    const members = sidebarMembers(sourceGroup);
+    const target = members.find((game) => game.game_id === targetId);
+    const placement =
+      y < row.getBoundingClientRect().top + row.clientHeight / 2
+        ? 'before'
+        : 'after';
+    return {
+      action: 'sort' as const,
+      group_id: sourceGroup,
+      target_id: targetId,
+      placement: placement as 'before' | 'after',
+      allowed:
+        targetId !== gameId &&
+        !!target &&
+        members.some((game) => game.game_id === gameId),
+      hint:
+        targetId === gameId
+          ? '拖到同组其他游戏以排序'
+          : `放到“${target?.title ?? ''}”${placement === 'before' ? '之前' : '之后'}`,
+    };
+  }
+  const element = hit?.closest<HTMLElement>('[data-game-drop-group]');
   const id = element?.dataset.gameDropGroup ?? '';
   const group = preview.groups.find((group) => group.group_id === id);
   if (group && !group.smart && !group.hidden)
-    return { group_id: id, allowed: true, hint: `加入“${group.name}”` };
+    return {
+      action: 'add' as const,
+      target_id: '',
+      placement: 'after' as const,
+      group_id: id,
+      allowed: true,
+      hint: `加入“${group.name}”`,
+    };
   return {
+    action: 'add' as const,
+    target_id: '',
+    placement: 'after' as const,
     group_id: id,
     allowed: false,
     hint: group?.smart
@@ -62,6 +100,9 @@ export function armGameDrag(
   if (!game) return;
   cancelPending?.();
   const origin = { x: event.clientX, y: event.clientY };
+  const sourceGroup =
+    element?.closest<HTMLElement>('[data-game-sort-group]')?.dataset
+      .gameSortGroup ?? '';
   const pointer_id = event.pointerId;
   let dragging = false;
   let cancelled = false;
@@ -71,7 +112,13 @@ export function armGameDrag(
     click.stopImmediatePropagation();
   };
   const update = (x: number, y: number) => {
-    gameDrag.value = { game_id, title: game.title, x, y, ...targetAt(x, y) };
+    gameDrag.value = {
+      game_id,
+      title: game.title,
+      x,
+      y,
+      ...targetAt(x, y, sourceGroup, game_id),
+    };
   };
   const scroll = () => {
     const state = gameDrag.value;
@@ -145,6 +192,20 @@ export function armGameDrag(
     const state = gameDrag.value;
     cleanup();
     if (cancelled || !dragging || !state?.allowed || gameDropBusy.value) return;
+    if (state.action === 'sort') {
+      gameDropBusy.value = true;
+      void moveSidebarGame(
+        state.group_id,
+        game_id,
+        state.target_id,
+        state.placement,
+      )
+        .catch((error) => notify(errorText(error)))
+        .finally(() => {
+          gameDropBusy.value = false;
+        });
+      return;
+    }
     // Revalidate against live data at release; a filtered/replaced card may be gone.
     const target = preview.groups.find(
       (group) => group.group_id === state.group_id,

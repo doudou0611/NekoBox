@@ -105,6 +105,8 @@ try {
         let data;
         if (command === 'get_game') data = window.ratesGame;
         else if (command === 'get_hikarinagi_rates') {
+          if (window.ratesMode === 'pending')
+            await new Promise((resolve) => (window.finishRatesRead = resolve));
           if (window.ratesMode === 'error')
             return {
               success: false,
@@ -175,6 +177,7 @@ try {
   window.rebindRates=()=>{local.records['rates-test']={...local.records['rates-test'],metadata:[]};};
   window.saveLocalRates=()=>{local.records['rates-test']={...local.records['rates-test'],favorite:true,status:'completed'};};
   window.stripRatesMetadata=()=>{const {metadata,...summary}=local.records['rates-test']; local.records['rates-test']=summary;};
+  window.setRatesMetadata=metadata=>{local.records['rates-test']={...local.records['rates-test'],metadata};};
   const router=createRouter({history:createMemoryHistory(),routes:[{path:'/games/:game_id',component:Detail}]}); await router.push('/games/rates-test'); await router.isReady();
   createApp(RouterView).use(router).mount('#test-root');
   </script></body></html>`,
@@ -473,6 +476,107 @@ try {
     await wall.locator('.wall-histogram,.wall-statuses,.wall-keywords').count(),
     0,
   );
+  // ID 17745's live public response has no score/tags, despite two completions.
+  // Bangumi fields below are an isolated scraped-metadata fixture, not a live score assertion.
+  await page.evaluate(() => {
+    window.ratesFixture = {
+      ...window.ratesFixture,
+      remote_id: '17745',
+      source_url: 'https://www.hikarinagi.org/galgames/17745/rates',
+      status_counts: { completed: 2, going: 0, on_hold: 0, dropped: 0 },
+    };
+    window.fallbackFields = (provider, score) => [
+      {
+        provider,
+        field: 'source_rating',
+        value: JSON.stringify(score),
+        remote_id: provider === 'bangumi' ? '447039' : 'v50000',
+        fetched_at: '2026-10-04T00:00:00Z',
+        manually_edited: false,
+        cached: true,
+      },
+      {
+        provider,
+        field: 'source_tags',
+        value: JSON.stringify('国产\nGalgame\nSLG\n2024\nPC\n后宫\n同居\n恋爱'),
+        remote_id: provider === 'bangumi' ? '447039' : 'v50000',
+        fetched_at: '2026-10-04T00:00:00Z',
+        manually_edited: false,
+        cached: true,
+      },
+    ];
+    window.setRatesMetadata([
+      {
+        provider: 'hikarinagi',
+        field: 'title',
+        value: '"夏色四叶草"',
+        fetched_at: '2026-10-04T00:00:00Z',
+        manually_edited: false,
+        cached: true,
+      },
+      ...window.fallbackFields('bangumi', '7.2'),
+      ...window.fallbackFields('vndb', '8.1'),
+    ]);
+  });
+  await wall.getByText(/来源：Bangumi/).waitFor();
+  assert.equal(await wall.locator('.wall-rating strong').innerText(), '7.2');
+  assert.equal(await wall.locator('.wall-stars .filled').count(), 7);
+  assert.deepEqual(
+    await wall
+      .locator('.wall-keywords li > span:nth-child(2)')
+      .allTextContents(),
+    ['国产', 'Galgame', 'SLG', '2024', 'PC', '后宫'],
+  );
+  assert.equal(
+    await wall
+      .locator(
+        '.wall-keywords strong,.wall-statuses,.wall-histogram,.wall-rating-action',
+      )
+      .count(),
+    0,
+  );
+  assert.match(await wall.locator('.wall-source').innerText(), /本地刮削快照/);
+  const fallbackReadCount = await readCount();
+  await page.evaluate(() => window.saveLocalRates());
+  await page.evaluate(() => window.stripRatesMetadata());
+  await page.waitForTimeout(100);
+  assert.equal(await readCount(), fallbackReadCount);
+  await wall.screenshot({
+    path: resolve(evidence, 'bangumi-fallback-wall.png'),
+  });
+  // Refresh failure keeps the local fallback; a later valid Hika wall takes priority.
+  await page.evaluate(() => (window.ratesMode = 'error'));
+  await wall.getByRole('button', { name: '刷新 Hikarinagi 安利墙' }).click();
+  await wall.getByText(/来源：Bangumi/).waitFor();
+  assert.equal(await wall.getByRole('alert').count(), 0);
+  await page.evaluate(() => {
+    window.ratesMode = 'pending';
+    window.ratesFixture = {
+      ...window.ratesFixture,
+      average: 8.2,
+      rated_count: 9,
+    };
+  });
+  await wall.getByRole('button', { name: '刷新 Hikarinagi 安利墙' }).click();
+  await wall.getByText(/正在获取 Hikarinagi/).waitFor();
+  assert.equal(await wall.locator('.wall-rating').count(), 0);
+  await page.waitForFunction(
+    () => typeof window.finishRatesRead === 'function',
+  );
+  await page.evaluate(() => window.finishRatesRead());
+  await wall.getByText(/来源：Hikarinagi/).waitFor();
+  assert.equal(await wall.locator('.wall-rating strong').innerText(), '8.2');
+  assert.equal(await wall.locator('.wall-rating-action').count(), 1);
+  // No Hika binding: the selected work's metadata can fall back to VNDB.
+  await page.evaluate(() => {
+    window.ratesMode = 'unbound';
+    window.setRatesMetadata(window.fallbackFields('vndb', '8.1'));
+  });
+  await wall.getByText(/来源：VNDB/).waitFor();
+  assert.equal(await wall.locator('.wall-rating strong').innerText(), '8.1');
+  await page.evaluate(() => window.setRatesMetadata([]));
+  await wall.getByText(/尚未匹配 Hikarinagi/).waitFor();
+  assert.equal(await wall.locator('.wall-rating').count(), 0);
   const requests = await page.evaluate(() => window.ratesRequests);
   assert(
     requests.some(

@@ -21,6 +21,44 @@ test('complete manifests pin both architectures to the same release and embed si
   );
   assert.match(manifest.portable['windows-x86_64'].url, /x64-portable.zip$/);
 });
+test('uppercase release tags keep download URLs case exact and reject mismatched versions', () => {
+  const signatures = { x64: 'x', arm64: 'a' };
+  const manifest = createUpdateManifest({
+    version: '0.1.2',
+    tag: 'V0.1.2',
+    signatures,
+  });
+  assert.match(
+    manifest.platforms['windows-x86_64'].url,
+    /\/download\/V0\.1\.2\//,
+  );
+  assert.match(
+    manifest.portable['windows-aarch64'].url,
+    /\/download\/V0\.1\.2\//,
+  );
+  for (const tag of ['V0.1.1', 'v0.1', 'latest', '../V0.1.2'])
+    assert.throws(() =>
+      createUpdateManifest({ version: '0.1.2', tag, signatures }),
+    );
+});
+test('unprefixed release tags match GitHub assets without introducing a v prefix', () => {
+  const manifest = createUpdateManifest({
+    version: '0.1.2',
+    tag: '0.1.2',
+    signatures: { x64: 'x', arm64: 'a' },
+  });
+  for (const assets of [manifest.platforms, manifest.portable])
+    for (const asset of Object.values(assets))
+      assert.match(asset.url, /\/download\/0\.1\.2\//);
+  for (const tag of ['0.1.1', '0.1.2/evil', '0.1.2?query', '0.1.2#fragment'])
+    assert.throws(() =>
+      createUpdateManifest({
+        version: '0.1.2',
+        tag,
+        signatures: { x64: 'x', arm64: 'a' },
+      }),
+    );
+});
 test('partial signatures and malformed versions cannot be published as automatic updates', () => {
   const signatures = { x64: 'x', arm64: 'a' };
   assert.throws(() =>
