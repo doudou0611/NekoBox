@@ -1,0 +1,5 @@
+# Only known toolchain install scripts may run; unexpected scripts fail installation.
+allowBuilds:
+  vue-demi: true
+  esbuild: true
+  '@tailwindcss/oxide': true

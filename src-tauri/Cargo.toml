@@ -1,0 +1,38 @@
+[package]
+name = "galgame-manager"
+version = "0.1.0"
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.98.1"
+publish = false
+
+[lib]
+name = "galgame_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api", "protocol-asset", "tray-icon"] }
+tauri-plugin-dialog = "2"
+reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "json", "rustls", "socks", "system-proxy"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "=0.40.2", features = ["bundled", "backup"] }
+sha2 = "=0.10.9"
+ring = "=0.17.14"
+quick-xml = "=0.42.0"
+uuid = { version = "=1.26.1", features = ["v4"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["clock", "serde"] }
+zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
+
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_System_Registry", "Win32_UI_Shell", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse"] }
+
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+# Already used transitively by Tauri; direct use lets us handle effect failures.
+window-vibrancy = "=0.8.1"
+keyring = { version = "=3.6.3", default-features = false, features = ["apple-native", "windows-native"] }

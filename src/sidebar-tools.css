@@ -1,0 +1,256 @@
+/* Shared theme variables keep the dock and portalled panels consistent. */
+.sidebar-dock {
+  width: 100%;
+  height: 60px;
+  flex-shrink: 0;
+  display: grid;
+  align-items: center;
+}
+.sidebar-dock-expanded,
+.sidebar-dock-compact {
+  width: 100%;
+}
+.sidebar-dock-compact {
+  display: flex;
+  justify-content: center;
+}
+.sidebar-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    135deg,
+    var(--surface),
+    color-mix(in srgb, var(--surface) 88%, var(--accent))
+  );
+  box-shadow:
+    inset 0 1px 0 var(--edge-highlight),
+    0 4px 16px rgb(var(--shadow-ink) / 8%);
+}
+.sidebar-tools .sidebar-tool {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: var(--radius-pill);
+  padding: 0;
+  color: var(--muted);
+  transition:
+    background var(--micro-duration),
+    color var(--micro-duration),
+    transform var(--micro-duration) var(--ease-standard);
+}
+.sidebar-tools .sidebar-tool:hover,
+.sidebar-tools .sidebar-tool.is-selected,
+.sidebar-tools .sidebar-tool[aria-expanded='true'] {
+  color: var(--accent-ink, var(--accent));
+  background: var(--accent-wash);
+}
+.sidebar-tools .sidebar-tool.is-selected::before {
+  display: none;
+}
+/* Compact the expanded dock without narrowing the descriptive popup rows. */
+.sidebar-dock-expanded .sidebar-tools {
+  width: 75%;
+  margin-inline: auto;
+}
+.sidebar-dock-expanded .sidebar-tool {
+  flex-basis: 32px;
+  width: 32px;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-ink, var(--accent));
+  background: var(--accent-wash);
+  font-family: var(--font-display);
+}
+.account-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sidebar-menu-avatar {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-subtle);
+  transition:
+    box-shadow var(--micro-duration),
+    transform var(--micro-duration) var(--ease-standard),
+    border-color var(--micro-duration);
+}
+.sidebar-menu-avatar .account-avatar {
+  width: 36px;
+  height: 36px;
+}
+.sidebar-menu-avatar:hover,
+.sidebar-menu-avatar[aria-expanded='true'] {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.sidebar-task-dot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--surface);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.sidebar-quick-panel {
+  width: min(244px, calc(100vw - 32px));
+  padding: var(--space-12);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-floating);
+  z-index: var(--z-modal);
+  transform-origin: var(--reka-popover-content-transform-origin);
+}
+.sidebar-quick-panel > header {
+  padding: 8px 10px 14px;
+  display: grid;
+  gap: 5px;
+}
+.sidebar-quick-panel > header > span {
+  color: var(--subtle);
+  letter-spacing: 0.2em;
+  font: 9px var(--font-mono);
+}
+.sidebar-quick-panel > header > strong {
+  color: var(--text);
+  font: 19px var(--font-display);
+}
+.sidebar-tools.is-menu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.sidebar-tools.is-menu .sidebar-tool {
+  width: 100%;
+  height: 54px;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  gap: 13px;
+  border-radius: var(--radius-md);
+}
+.sidebar-tool-copy {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  color: var(--text);
+  font-size: 12px;
+}
+.sidebar-tool-copy small {
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 400;
+}
+.sidebar-tools.is-menu .account-avatar {
+  width: 24px;
+  height: 24px;
+  margin-inline: -2px;
+}
+.sidebar-tools.is-menu .operation-trigger-progress {
+  left: 44px;
+  right: 16px;
+  bottom: 4px;
+}
+.sidebar-quick-panel[data-state='open'],
+.operation-popover[data-state='open'] {
+  animation: sidebar-panel-in var(--feedback-duration) var(--ease-standard);
+}
+.sidebar-quick-panel[data-state='closed'],
+.operation-popover[data-state='closed'] {
+  animation: sidebar-panel-out var(--micro-duration) var(--ease-exit);
+}
+@keyframes sidebar-panel-in {
+  from {
+    opacity: 0;
+    transform: translate(8px, 8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sidebar-panel-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate(4px, 4px) scale(0.98);
+  }
+}
+.dock-view-enter-active,
+.dock-view-leave-active {
+  transition:
+    opacity var(--micro-duration),
+    transform var(--micro-duration) var(--ease-standard);
+}
+.dock-view-enter-from,
+.dock-view-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.97);
+}
+.detail-navigation {
+  position: relative;
+  z-index: 1;
+  margin-bottom: var(--space-24);
+}
+.detail-navigation .detail-back-button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-glass);
+  gap: 9px;
+}
+.detail-navigation .detail-back-button span {
+  margin-left: 6px;
+}
+:root[data-motion='reduced'] :is(.sidebar-quick-panel, .operation-popover) {
+  animation: none;
+}
+:root[data-motion='reduced']
+  :is(.dock-view-enter-active, .dock-view-leave-active, .sidebar-menu-avatar) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-quick-panel[data-state],
+  .operation-popover[data-state] {
+    animation: none;
+  }
+  .dock-view-enter-active,
+  .dock-view-leave-active,
+  .sidebar-menu-avatar {
+    transition: none;
+  }
+}

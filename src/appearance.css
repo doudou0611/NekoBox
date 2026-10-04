@@ -1,0 +1,141 @@
+/* Native backdrop preferences are independent of animation preferences. */
+:root {
+  --desktop-main-tint: rgb(17 19 30 / 60%);
+  --scrollbar-thumb: rgb(170 167 187 / 38%);
+  --scrollbar-thumb-hover: rgb(199 185 243 / 68%);
+}
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on'] {
+  background: transparent;
+}
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']
+  :is(body, #app, .exhibition-app) {
+  background: transparent;
+}
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']
+  .exhibition-app {
+  isolation: auto;
+}
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']
+  .app-ambience {
+  left: var(--rail-width);
+  /* The main and rail each supply one tint; ambience must not stack another. */
+  background: radial-gradient(ellipse at 80% 2%, var(--halo), transparent 46%);
+  transition: left var(--layout-duration) var(--ease-standard);
+}
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']
+  :is(.navigation-rail, .exhibition-main) {
+  background: var(--desktop-main-tint);
+}
+/* A transparent WebView has its blur supplied by the OS. Avoid competing CSS
+   backdrop layers when full motion promotes content to compositor surfaces. */
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']
+  *,
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']
+  ::backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-global-glass='off'] *,
+:root[data-global-glass='off'] ::before,
+:root[data-global-glass='off'] ::after,
+:root[data-global-glass='off'] ::backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-global-glass='off']
+  :is(body, #app, .exhibition-app, .navigation-rail) {
+  background: var(--background);
+}
+/* Thin, rounded, theme-aware scrollbars. Native high-contrast remains available. */
+/* The optional VM profile retains the full interaction timeline, but avoids transparent
+   desktop composition and full-surface blur at Retina pixel densities. */
+:root[data-render-profile='virtual-machine'] *,
+:root[data-render-profile='virtual-machine'] ::before,
+:root[data-render-profile='virtual-machine'] ::after,
+:root[data-render-profile='virtual-machine'] ::backdrop {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+:root[data-render-profile='virtual-machine']
+  :is(body, #app, .exhibition-app, .navigation-rail, .exhibition-main) {
+  background: var(--background);
+}
+:root[data-render-profile='virtual-machine']
+  :is(.hero-scenery, .detail-scenery) {
+  display: none;
+}
+:root[data-render-profile='virtual-machine'] .hero-halo {
+  animation: none;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: auto !important;
+    scrollbar-color: auto !important;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: var(--radius-pill);
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+@media (forced-colors: active) {
+  * {
+    scrollbar-color: auto !important;
+    scrollbar-width: auto !important;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: CanvasText;
+  }
+}
+
+.exhibition-app[data-game-dragging='true'] {
+  user-select: none;
+}
+.exhibition-app[data-game-dragging='true'] * {
+  cursor: grabbing !important;
+}

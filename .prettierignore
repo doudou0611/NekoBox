@@ -1,0 +1,9 @@
+node_modules
+dist
+.tools
+src-tauri/target
+src-tauri/gen
+pnpm-lock.yaml
+Cargo.lock
+GALGAME_MANAGER.md
+docs/archive/

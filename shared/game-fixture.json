@@ -1,0 +1,53 @@
+{
+  "id": "fixture-game",
+  "title": "星海的回声",
+  "title_zh": "星海的回声",
+  "title_ja": null,
+  "title_en": "Echoes of the Stars",
+  "cover_url": null,
+  "developer": "Fixture Studio",
+  "publisher": null,
+  "release_date": "2025-01-01",
+  "source_rating": null,
+  "source_tags": [],
+  "status": "not_started",
+  "favorite": false,
+  "hidden": false,
+  "total_playtime_seconds": 0,
+  "last_played_at": null,
+  "added_at": "2026-09-30T00:00:00Z",
+  "metadata_status": "local_only",
+  "installations": [
+    {
+      "id": "fixture-install",
+      "game_id": "fixture-game",
+      "absolute_path": "C:\\Fixtures\\星海 游戏",
+      "executable_path": null,
+      "source": "local",
+      "steam_app_id": null,
+      "path_valid": false
+    }
+  ],
+  "tags": [
+    {
+      "id": "fixture-tag",
+      "name": "星空",
+      "color": null
+    }
+  ],
+  "description": "协议测试样例，不是用户游戏或生产数据。",
+  "metadata": [
+    {
+      "field": "title",
+      "value": "星海的回声",
+      "provider": "manual",
+      "fetched_at": null,
+      "cached": false,
+      "manually_edited": true,
+      "remote_id": null
+    }
+  ],
+  "user_rating": null,
+  "has_save_backup": false,
+  "metadata_locked": false
+}

@@ -1,0 +1,10 @@
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import App from './App.vue';
+import './style.css';
+import './appearance.css';
+import './settings.css';
+import './sidebar-tools.css';
+import './detail-workspace.css';
+import { createAppRouter } from './router';
+createApp(App).use(createPinia()).use(createAppRouter()).mount('#app');
