@@ -10,3 +10,6 @@ coverage/
 .DS_Store
 /data/
 *.log
+
+# Updater signing private keys belong outside the repository.
+*.key

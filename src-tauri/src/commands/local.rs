@@ -29,6 +29,11 @@ async fn dispatch<P: Send + 'static, T: Serialize + Send + 'static>(
     };
     let task_id = request_id.clone();
     match tauri::async_runtime::spawn_blocking(move || {
+        let service = backend.clone();
+        let _operation = service
+            .operation_gate
+            .read()
+            .map_err(|_| backend::invalid("应用正在安装更新。"))?;
         operation(backend, request.payload, &task_id)
     })
     .await

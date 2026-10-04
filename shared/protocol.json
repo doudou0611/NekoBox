@@ -198,6 +198,11 @@
     "test_vndb_connection": "implemented",
     "sync_account_play_data": "implemented",
     "get_app_settings": "implemented",
-    "save_app_settings": "implemented"
+    "save_app_settings": "implemented",
+    "check_app_update": "implemented",
+    "get_app_update_status": "implemented",
+    "download_app_update": "implemented",
+    "install_app_update": "implemented",
+    "open_app_update_release": "implemented"
   }
 }

@@ -22,6 +22,15 @@ const MAX_CANDIDATES: u64 = 10_000;
 pub struct ScanManager {
     controls: Mutex<HashMap<String, Arc<AtomicU8>>>,
 }
+impl ScanManager {
+    pub(crate) fn is_idle(&self) -> Result<bool> {
+        Ok(self
+            .controls
+            .lock()
+            .map_err(|_| invalid("扫描服务不可用。"))?
+            .is_empty())
+    }
+}
 pub fn ignored_executable(path: &Path) -> bool {
     let name = path
         .file_stem()

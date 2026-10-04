@@ -43,7 +43,12 @@ NekoBox 是一款面向 Windows 的 Galgame 本地游戏库管理软件。它将
 - **安装版**：运行对应架构的安装程序，按向导完成安装。
 - **便携版**：若该版本提供便携包，将全部文件解压到有写入权限的目录，再运行 `NekoBox.exe`。
 
-可用的软件包类型以对应 Release 的附件为准。当前应用内更新检测尚未开放，请通过 Releases 查看新版本。
+可用的软件包类型以对应 Release 的附件为准。从 **0.1.1** 起，软件启动后自动检查本仓库的最新正式 Release，也可以前往「设置 → 应用更新」手动检查。
+
+- **安装版更新**：发现新版本后，选择「下载更新」，通过签名校验后确认安装。软件关闭，安装完成后重新打开。安装前请退出游戏并完成扫描、备份或恢复等任务；原有 `data` 目录保留。
+- **便携版更新**：选择「下载便携包」后由系统浏览器下载。退出软件，再替换原目录中的程序及资源，保留原有 `data` 目录。
+- 检查和安装包下载沿用软件的代理设置。网络失败时可重试，也可打开发布页面手动下载。
+- 已发布的 **0.1.0 / V0.1** 没有更新功能，需要先手动安装一次 0.1.1 或更高版本。
 
 ## 快速上手
 
@@ -119,6 +124,20 @@ src-tauri/target/aarch64-pc-windows-msvc/release/
 可执行文件为 `NekoBox.exe`，NSIS 安装包位于各自的 `bundle/nsis/` 子目录。非 Windows 环境交叉构建还需配置 `cargo-xwin` 等工具，不能只安装 Rust 目标后直接构建。
 
 构建脚本会先生成第三方授权声明，再将安装包、包含授权文件的便携包及 `SHA256SUMS.txt` 整理到 `.tools/releases/v版本号/`。授权声明生成需要安装前端依赖，并能访问上游授权文件；可单独运行 `pnpm release:licenses`。
+
+### 发布可自动更新的版本
+
+更新采用 [Tauri 官方 updater](https://v2.tauri.app/plugin/updater/)，安装包使用独立的更新签名密钥，客户端校验签名和签名绑定的版本号后才允许安装。清单作为 **Release 附件 `latest.json`** 发布，与安装包属于同一次发布；无需自己的服务器，也无需在仓库根目录维护 `update.json`。
+
+1. 同步修改 `package.json`、`src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 的版本，使用完整 SemVer，例如 `0.1.2`，并更新 Cargo 锁文件。
+2. 配置 `TAURI_SIGNING_PRIVATE_KEY`（私钥文件路径或内容）；有密码时同时配置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。本机构建脚本也会读取用户配置目录中的 `~/.config/NekoBox/updater.key`。私钥与 `.pub` 公钥文件应妥善备份，私钥不能提交到仓库或上传到 Release。`tauri.conf.json` 中的公钥必须与该私钥对应；后续版本继续使用同一密钥。
+3. 运行 `pnpm desktop:build`。脚本顺序构建 x64 与 ARM64，生成 `.sig` 签名、便携包和更新清单，整理到 `.tools/releases/v版本号/`。分别构建两种架构时，完成后运行 `pnpm release:manifest` 汇总。
+4. 在 GitHub 新建草稿 Release，标签必须为 **`v版本号`**，例如 `v0.1.2`。上传两个 `-setup.exe`、两个 `-portable.zip`、两个 `-setup.exe.sig`、`latest.json` 和 `SHA256SUMS.txt`，共 **8 个附件**。写好更新说明，全部上传完成后再发布为最新正式版本；测试版标记为 Pre-release。
+5. 用旧的、已启用更新功能的 Windows 安装版验证检查、下载、签名校验、安装和数据保留。便携版分别验证 x64 / ARM64 下载入口。
+
+`latest.json` 包含版本、说明、日期和 `windows-x86_64` / `windows-aarch64` 的下载地址与签名**内容**，下载地址固定到对应版本标签。可在构建或生成清单前设置 `NEKOBOX_RELEASE_NOTES_PATH` 指向更新说明文件，写入清单。软件只检查正式版本，不自动下载或强制安装；缺少清单的旧 Release 会提供手动更新入口。
+
+更新签名用于验证应用更新包，与 Windows Authenticode 证书不同。
 
 ### 代码检查
 

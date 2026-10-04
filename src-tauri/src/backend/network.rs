@@ -37,6 +37,33 @@ pub fn builder_with(settings: &Settings) -> reqwest::blocking::ClientBuilder {
         Err(_) => builder.no_proxy(),
     }
 }
+/// Read the same policy for each updater request, including download retries.
+pub(crate) fn configure_async(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    let settings = POLICY
+        .get_or_init(|| RwLock::new(Settings::default()))
+        .read()
+        .map(|p| p.clone())
+        .unwrap_or_default();
+    let builder = builder
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 10 || attempt.url().scheme() != "https" {
+                attempt.stop()
+            } else {
+                attempt.follow()
+            }
+        }));
+    if !settings.proxy_enabled {
+        return builder.no_proxy();
+    }
+    if settings.proxy_mode == "system" {
+        return builder;
+    }
+    match reqwest::Proxy::all(&settings.proxy_url) {
+        Ok(proxy) => builder.no_proxy().proxy(proxy),
+        Err(_) => builder.no_proxy(),
+    }
+}
 #[derive(serde::Deserialize)]
 pub struct ImageRequest {
     pub url: String,

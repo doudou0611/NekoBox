@@ -1,3 +1,4 @@
+import type { AppUpdateStatus } from './updates';
 import type {
   BackupConfigView,
   SaveBackupConfig,
@@ -122,6 +123,11 @@ export interface HealthStatus {
 }
 /** Actual implementation status is tracked in shared/protocol.json. */
 export interface CommandPayloads {
+  check_app_update: Record<string, never>;
+  get_app_update_status: Record<string, never>;
+  download_app_update: Record<string, never>;
+  install_app_update: { confirmed: true };
+  open_app_update_release: { download: boolean };
   cache_remote_image: { url: string; avatar: boolean };
   open_bangumi_login: Record<string, never>;
   start_metadata_refresh: { confirmed: true };
@@ -325,6 +331,11 @@ export interface CommandPayloads {
   delete_save_snapshot: { snapshot_id: string; confirmed: true };
 }
 export interface CommandResults {
+  check_app_update: AppUpdateStatus;
+  get_app_update_status: AppUpdateStatus;
+  download_app_update: AppUpdateStatus;
+  install_app_update: AppUpdateStatus;
+  open_app_update_release: boolean;
   cache_remote_image: string;
   open_bangumi_login: boolean;
   start_metadata_refresh: MetadataRefreshStatus;
@@ -571,5 +582,10 @@ export const IMPLEMENTED_COMMANDS = [
   'sync_account_play_data',
   'get_app_settings',
   'save_app_settings',
+  'check_app_update',
+  'get_app_update_status',
+  'download_app_update',
+  'install_app_update',
+  'open_app_update_release',
 ] as const satisfies readonly CommandName[];
 export type CommandName = keyof CommandPayloads;

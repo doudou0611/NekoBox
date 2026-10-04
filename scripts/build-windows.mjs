@@ -1,5 +1,13 @@
-import { existsSync, mkdirSync, symlinkSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  symlinkSync,
+  lstatSync,
+  readlinkSync,
+  unlinkSync,
+} from 'node:fs';
 import { delimiter, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
@@ -31,7 +39,18 @@ const env = localCargo
       XWIN_CACHE_DIR: resolve(root, '.tools/xwin'),
       PATH: resolve(cargoHome, 'bin') + delimiter + process.env.PATH,
     }
-  : process.env;
+  : { ...process.env };
+const defaultKey = resolve(homedir(), '.config/NekoBox/updater.key');
+if (!env.TAURI_SIGNING_PRIVATE_KEY && existsSync(defaultKey)) {
+  env.TAURI_SIGNING_PRIVATE_KEY = defaultKey;
+  env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ??= '';
+}
+if (!env.TAURI_SIGNING_PRIVATE_KEY) {
+  console.error(
+    '缺少更新签名私钥，请按 README 配置 TAURI_SIGNING_PRIVATE_KEY。',
+  );
+  process.exit(1);
+}
 const runner =
   localCargo && existsSync(resolve(cargoHome, 'bin/cargo-xwin'))
     ? ['--runner', 'cargo-xwin']
@@ -57,8 +76,14 @@ for (const target of selectedTargets) {
     const shimDirectory = resolve(root, '.tools/windows-arm64-clang');
     mkdirSync(shimDirectory, { recursive: true });
     const shim = resolve(shimDirectory, 'clang');
-    if (!existsSync(shim))
-      symlinkSync(resolve(root, 'scripts/clang-windows-arm64.mjs'), shim);
+    const source = resolve(root, 'scripts/clang-windows-arm64.mjs');
+    try {
+      if (lstatSync(shim).isSymbolicLink() && readlinkSync(shim) !== source)
+        unlinkSync(shim);
+    } catch (cause) {
+      if (cause.code !== 'ENOENT') throw cause;
+    }
+    if (!existsSync(shim)) symlinkSync(source, shim);
     const llvm = ['/opt/homebrew/opt/llvm/bin', '/usr/local/opt/llvm/bin'].find(
       (path) => existsSync(resolve(path, 'clang-cl')),
     );
@@ -97,6 +122,16 @@ for (const target of selectedTargets) {
     console.error(`Windows ${arch} 发行包整理失败。`);
     process.exit(packaged.status || 1);
   }
+}
+
+if (requested === 'all') {
+  const manifest = spawnSync(process.execPath, ['scripts/release-update.mjs'], {
+    cwd: root,
+    env,
+    stdio: 'inherit',
+  });
+  if (manifest.error || manifest.status !== 0)
+    process.exit(manifest.status || 1);
 }
 
 console.log(

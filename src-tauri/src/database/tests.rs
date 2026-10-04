@@ -835,3 +835,30 @@ fn database_deletions_never_remove_external_game_save_snapshot_or_screenshot_fil
     }
     drop(database);
 }
+
+#[test]
+fn application_update_refuses_live_games_and_pending_recovery() {
+    let database = library();
+    assert!(database.prepare_application_update().is_ok());
+    database.connection.execute("INSERT INTO play_sessions (id, game_id, install_id, started_at) VALUES ('update-session', 'g1', 'i1', ?1)", [NOW]).unwrap();
+    assert!(database.prepare_application_update().is_err());
+    database
+        .connection
+        .execute(
+            "UPDATE play_sessions SET ended_at=started_at WHERE id='update-session'",
+            [],
+        )
+        .unwrap();
+    assert!(database.prepare_application_update().is_ok());
+    for key in [
+        "database.import.pending",
+        "saves.restore.pending",
+        "backup.restore.pending",
+        "backup.restore.journal",
+    ] {
+        database.put_setting(key, &true).unwrap();
+        assert!(database.prepare_application_update().is_err());
+        database.delete_setting(key).unwrap();
+    }
+    assert!(database.prepare_application_update().is_ok());
+}

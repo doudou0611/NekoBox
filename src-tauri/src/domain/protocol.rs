@@ -65,7 +65,12 @@ pub const EVENTS: [(&str, &str); 6] = [
     ("download_progress", "download:progress"),
 ];
 pub const PLANNED_COMMANDS: [&str; 0] = [];
-pub const IMPLEMENTED_COMMANDS: [&str; 112] = [
+pub const IMPLEMENTED_COMMANDS: [&str; 117] = [
+    "check_app_update",
+    "get_app_update_status",
+    "download_app_update",
+    "install_app_update",
+    "open_app_update_release",
     "cache_remote_image",
     "open_bangumi_login",
     "start_metadata_refresh",

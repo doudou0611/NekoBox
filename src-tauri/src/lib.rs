@@ -4,6 +4,7 @@ mod cover_protocol;
 pub mod database;
 pub mod domain;
 mod screenshot_protocol;
+mod updates;
 mod window_material;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
@@ -43,6 +44,8 @@ pub fn run() {
             )
         })
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::UpdateState::default())
         .setup(|app| {
             let show = MenuItemBuilder::with_id("show", "显示主窗口").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "退出 NekoBox").build(app)?;
@@ -105,6 +108,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::health_check,
+            commands::check_app_update,
+            commands::get_app_update_status,
+            commands::download_app_update,
+            commands::install_app_update,
+            commands::open_app_update_release,
             commands::get_app_settings,
             commands::cache_remote_image,
             commands::open_bangumi_login,

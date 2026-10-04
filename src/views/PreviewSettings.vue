@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { open } from '@tauri-apps/plugin-dialog';
 import { preview } from '../preview/store';
-import { api, desktop, errorText, notify } from '../stores/library';
+import { desktop, errorText, notify } from '../stores/library';
 import { global_glass_enabled } from '../composables/useDesktopMaterial';
 import { PALETTES } from '../preview/palettes';
 import {
@@ -19,7 +20,9 @@ import ApplicationBackup from '../components/ApplicationBackup.vue';
 import SettingsSwitch from '../components/settings/SettingsSwitch.vue';
 import SettingsChoice from '../components/settings/SettingsChoice.vue';
 import SettingsSection from '../components/settings/SettingsSection.vue';
+import AppUpdates from '../components/settings/AppUpdates.vue';
 
+const route = useRoute();
 const chapters = [
   {
     id: 'appearance',
@@ -41,13 +44,16 @@ const chapters = [
     title: '数据与备份',
     description: '为作品、记录和珍藏，留下一份安心。',
   },
-  { id: 'updates', title: '应用更新', description: '关于当前版本与未来更新。' },
+  {
+    id: 'updates',
+    title: '应用更新',
+    description: '查看当前版本、更新说明与最新发布。',
+  },
 ];
 const active = ref('appearance');
 const draft = reactive<AppSettings>({ ...appSettings.value });
 const busy = ref(false);
 const error = ref('');
-const version = ref('');
 const nav = ref<HTMLElement>();
 const proxyProtocol = ref('http');
 const proxyHost = ref('');
@@ -155,11 +161,11 @@ onMounted(async () => {
       proxyHost.value = url.hostname;
       proxyPort.value = url.port || '7890';
     }
-    if (desktop) version.value = (await api('health_check', undefined)).version;
   } catch (cause) {
     error.value = errorText(cause);
   }
   await nextTick();
+  if (route.query.section === 'updates') jump('updates');
   updateActive();
 });
 onUnmounted(() => {
@@ -523,32 +529,7 @@ onUnmounted(() => {
         title="保持新鲜"
         description="当前版本与更新信息，在这里一目了然。"
       >
-        <div class="settings-card settings-update-preview">
-          <div class="update-orbit">
-            <img
-              class="app-brand-icon"
-              src="/brand/nekobox.png"
-              alt=""
-              width="68"
-              height="68"
-            />
-          </div>
-          <h3>NekoBox</h3>
-          <p class="settings-explanation">
-            {{
-              version
-                ? `当前版本 ${version}`
-                : desktop
-                  ? '正在读取当前版本…'
-                  : '浏览器界面预览'
-            }}
-          </p>
-          <span class="mini-badge">更新检测暂未开放</span>
-          <p class="settings-explanation">
-            更新服务开放后，你可以在这里查看新版本与更新说明。
-          </p>
-          <button class="secondary-button" disabled>检查更新</button>
-        </div>
+        <AppUpdates />
       </SettingsSection>
     </section>
   </div>

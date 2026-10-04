@@ -49,6 +49,28 @@ impl Database {
         Ok(())
     }
 
+    /// Refuse to exit during a game/recovery transaction; flush committed SQLite pages.
+    pub(crate) fn prepare_application_update(&self) -> ServiceResult<()> {
+        self.ensure_recovery_idle_except(None)?;
+        let active: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM play_sessions WHERE ended_at IS NULL)",
+            [],
+            |r| r.get(0),
+        )?;
+        if active {
+            return Err(invalid("仍有游戏正在运行，请退出游戏后安装更新。"));
+        }
+        let (busy, _, _): (i64, i64, i64) =
+            self.connection
+                .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |r| {
+                    Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                })?;
+        if busy != 0 {
+            return Err(invalid("数据库仍有写入任务，请稍后安装更新。"));
+        }
+        Ok(())
+    }
+
     /// Never migrates or writes the selected source. Accept only the exact current schema.
     pub fn verified_snapshot(path: &Path) -> ServiceResult<Self> {
         let connection =

@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { createHash } from 'node:crypto';
+import { writeReleaseChecksums } from './release-update.mjs';
 import { spawnSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
@@ -48,6 +48,13 @@ mkdirSync(destination, { recursive: true });
 const prefix = `${productName}_${version}_${arch}`;
 const installer = join(destination, `${prefix}-setup.exe`);
 copyFileSync(join(installerDirectory, installers[0]), installer);
+// Tauri signs the original bytes; standardizing the filename does not alter the signature.
+copyFileSync(
+  join(installerDirectory, installers[0] + '.sig'),
+  installer + '.sig',
+);
+// A rebuilt artifact invalidates any earlier manifest until both architectures are finalized.
+rmSync(join(destination, 'latest.json'), { force: true });
 const temporary = mkdtempSync(join(destination, '.staging-'));
 const portable = join(temporary, prefix);
 mkdirSync(portable);
@@ -100,16 +107,5 @@ try {
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }
-const checksums = readdirSync(destination)
-  .filter(
-    (name) => name.endsWith('-setup.exe') || name.endsWith('-portable.zip'),
-  )
-  .sort()
-  .map(
-    (name) =>
-      `${createHash('sha256')
-        .update(readFileSync(join(destination, name)))
-        .digest('hex')}  ${name}`,
-  );
-writeFileSync(join(destination, 'SHA256SUMS.txt'), checksums.join('\n') + '\n');
+writeReleaseChecksums(destination);
 console.log(`已验证 ${arch} PE 架构，发行文件：\n${installer}\n${zip}`);

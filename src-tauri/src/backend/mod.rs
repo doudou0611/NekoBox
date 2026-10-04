@@ -207,6 +207,7 @@ pub fn localized_source_tag(value: &str) -> Option<String> {
 #[derive(Clone)]
 pub struct Backend {
     pub db: Arc<Mutex<Database>>,
+    pub operation_gate: Arc<std::sync::RwLock<()>>,
     pub translation_snapshot: Option<(translation::Settings, Option<String>)>,
     pub app_settings_snapshot: Option<app_settings::Settings>,
     pub process_controls: Arc<Mutex<process_selection::Controls>>,
@@ -350,6 +351,7 @@ impl Backend {
             app_settings_snapshot: None,
             process_controls: Arc::new(Mutex::new(process_selection::Controls::new())),
             active_playtime: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            operation_gate: Arc::new(std::sync::RwLock::new(())),
             backups: Arc::new(Mutex::new(application_backup::Manager::default())),
             metadata_refresh: Arc::new(Mutex::new(metadata_refresh::Manager::default())),
             metadata_snapshot: None,

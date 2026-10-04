@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "NekoBox",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "dev.galgame.manager",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -49,7 +49,20 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       }
-    }
+    },
+    "createUpdaterArtifacts": true
   },
-  "mainBinaryName": "NekoBox"
+  "mainBinaryName": "NekoBox",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMxQ0I0NTQwMDk5NjU5ODkKUldTSldaWUpRRVhMd1lZWmJPSGdwS08rVDY0UVJuMDJ1a3htSmh2UDVVK2tWMU1ZSXQ1SW1sSTQK",
+      "endpoints": [
+        "https://github.com/doudou0611/NekoBox/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      },
+      "requireSignedVersion": true
+    }
+  }
 }

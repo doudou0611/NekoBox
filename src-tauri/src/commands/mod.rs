@@ -56,3 +56,5 @@ mod tests {
 }
 mod local;
 pub use local::*;
+
+pub use crate::updates::*;

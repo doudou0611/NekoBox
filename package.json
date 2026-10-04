@@ -1,6 +1,6 @@
 {
   "name": "galgame-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/release-update.test.mjs",
     "test:watch": "vitest",
     "test:browser": "node scripts/verify-preview.mjs",
     "test:activity": "node scripts/verify-activity.mjs",
@@ -38,7 +38,8 @@
     "rust:lint": "node scripts/rust.mjs clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "env:check": "node scripts/doctor.mjs",
     "test:database-transfer": "node scripts/verify-database-transfer.mjs",
-    "test:accounts": "node scripts/verify-accounts.mjs"
+    "test:accounts": "node scripts/verify-accounts.mjs",
+    "release:manifest": "node scripts/release-update.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.0",
