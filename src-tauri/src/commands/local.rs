@@ -850,3 +850,58 @@ command!(
     backend::process_selection::RunningProcess,
     |b, q, _| backend::process_selection::select(&b, q)
 );
+
+command!(
+    hikarifield_account,
+    EmptyRequest,
+    backend::hikarifield::Account,
+    |b, _, _| backend::hikarifield::account(&b)
+);
+command!(
+    login_hikarifield,
+    backend::hikarifield::LoginRequest,
+    backend::hikarifield::Account,
+    |b, q, _| backend::hikarifield::login(&b, q)
+);
+command!(
+    logout_hikarifield,
+    EmptyRequest,
+    backend::hikarifield::Account,
+    |b, _, _| backend::hikarifield::logout(&b)
+);
+command!(
+    sync_hikarifield,
+    EmptyRequest,
+    backend::hikarifield::SyncReport,
+    |b, _, _| backend::hikarifield::sync(&b)
+);
+command!(
+    get_hikarifield_settings,
+    EmptyRequest,
+    backend::hikarifield::Settings,
+    |b, _, _| backend::hikarifield::settings(&b)
+);
+command!(
+    set_hikarifield_path,
+    backend::hikarifield::PathRequest,
+    backend::hikarifield::Settings,
+    |b, q, _| backend::hikarifield::save_path(&b, q)
+);
+command!(
+    start_hikarifield_download,
+    backend::hikarifield::DownloadRequest,
+    backend::hikarifield::Download,
+    |b, q, _| backend::hikarifield::start(&b, q)
+);
+command!(
+    list_hikarifield_downloads,
+    EmptyRequest,
+    Vec<backend::hikarifield::Download>,
+    |b, _, _| backend::hikarifield::downloads(&b)
+);
+command!(
+    cancel_hikarifield_download,
+    backend::hikarifield::TaskRequest,
+    bool,
+    |b, q, _| backend::hikarifield::cancel(&b, q)
+);

@@ -141,6 +141,19 @@ impl Backend {
             .lock()
             .map_err(|_| ServiceError(ErrorCode::InternalError, "启动服务需要重新启动。"))?;
         let installation = self.database()?.installation(&r.install_id)?;
+        if self
+            .hikarifield_downloads
+            .lock()
+            .map_err(|_| invalid("下载服务需要重新启动。"))?
+            .tasks
+            .iter()
+            .any(|t| {
+                t.game_id == installation.game_id
+                    && matches!(t.status.as_str(), "queued" | "running")
+            })
+        {
+            return Err(invalid("请等待 HIKARI FIELD 下载完成，再启动游戏。"));
+        }
         let root = absolute_directory(&installation.absolute_path)?;
         let exe = installation.executable_path.as_ref().ok_or(ServiceError(
             ErrorCode::Conflict,

@@ -2,6 +2,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import BangumiLogin from './BangumiLogin.vue';
+import HikariFieldLogin from './HikariFieldLogin.vue';
+import { hikariField, loadHikariField } from '../stores/hikariField';
+const accountProviders = ['bangumi', 'hikarinagi', 'hikarifield'] as const;
 import PreviewIcon from './preview/PreviewIcon.vue';
 import { bangumi } from '../stores/bangumi';
 import {
@@ -92,31 +95,32 @@ watch(
 watch(tab, () => {
   confirm_sync.value = false;
 });
-function selectTab(value: 'bangumi' | 'hikarinagi') {
+function selectTab(value: AccountProvider) {
   tab.value = value;
 }
 function onTabKey(event: KeyboardEvent) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  tab.value =
+  const index = accountProviders.indexOf(tab.value);
+  const next =
     event.key === 'Home'
-      ? 'bangumi'
+      ? 0
       : event.key === 'End'
-        ? 'hikarinagi'
-        : tab.value === 'bangumi'
-          ? 'hikarinagi'
-          : 'bangumi';
+        ? 2
+        : (index + (event.key === 'ArrowRight' ? 1 : -1) + 3) % 3;
+  tab.value = accountProviders[next]!;
   void nextTick(() =>
     document.getElementById(`account-tab-${tab.value}`)?.focus(),
   );
 }
 function upload() {
   confirm_sync.value = false;
-  void syncAccount(tab.value);
+  if (tab.value !== 'hikarifield') void syncAccount(tab.value);
 }
 onMounted(() => {
   dialog.value?.showModal();
   void refreshHikariAccount();
+  void loadHikariField();
 });
 onUnmounted(() => {
   disposed = true;
@@ -159,12 +163,11 @@ onUnmounted(() => {
         class="account-tab-indicator"
         aria-hidden="true"
         :style="{
-          transform:
-            tab === 'hikarinagi' ? 'translateX(100%)' : 'translateX(0)',
+          transform: `translateX(${accountProviders.indexOf(tab) * 100}%)`,
         }"
       ></span
       ><button
-        v-for="provider in ['bangumi', 'hikarinagi'] as const"
+        v-for="provider in accountProviders"
         :id="`account-tab-${provider}`"
         :key="provider"
         role="tab"
@@ -174,13 +177,22 @@ onUnmounted(() => {
         :tabindex="tab === provider ? 0 : -1"
         @click="selectTab(provider)"
       >
-        {{ provider === 'bangumi' ? 'Bangumi' : 'Hikarinagi'
+        {{
+          provider === 'bangumi'
+            ? 'Bangumi'
+            : provider === 'hikarinagi'
+              ? 'Hikarinagi'
+              : 'HIKARI FIELD'
         }}<span
           class="account-status-dot"
           :class="{
             connected:
-              (provider === 'bangumi' ? bangumi : hikariAccount).account
-                .status === 'authenticated',
+              (provider === 'bangumi'
+                ? bangumi
+                : provider === 'hikarinagi'
+                  ? hikariAccount
+                  : hikariField
+              ).account.status === 'authenticated',
           }"
         ></span>
       </button>
@@ -199,6 +211,7 @@ onUnmounted(() => {
             embedded
             :locked="accountSync.busy"
           />
+          <HikariFieldLogin v-else-if="tab === 'hikarifield'" />
           <div v-else class="hikari-account-card">
             <h3>
               {{
@@ -283,7 +296,7 @@ onUnmounted(() => {
               浏览器预览无法保存真实账户，请在桌面软件中登录。
             </p>
           </div>
-          <div class="account-sync-card">
+          <div v-if="tab !== 'hikarifield'" class="account-sync-card">
             <div>
               <strong>游玩数据同步</strong>
               <p>
@@ -399,7 +412,7 @@ onUnmounted(() => {
 .account-tabs {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 6px;
   background: var(--surface-hover);
   border-radius: var(--radius-sm);
@@ -413,7 +426,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border: 0;
-  padding: 12px;
+  padding: 12px 6px;
+  font-size: 12px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -426,7 +440,7 @@ onUnmounted(() => {
   position: absolute;
   left: 6px;
   top: 6px;
-  width: calc(50% - 6px);
+  width: calc((100% - 12px) / 3);
   height: calc(100% - 12px);
   background: var(--surface);
   border-radius: calc(var(--radius-sm) - 3px);
@@ -519,13 +533,13 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateX(-10px);
 }
-:global(:root[data-motion='light']) .account-card-enter-active,
-:global(:root[data-motion='light']) .account-card-leave-active {
+:global(:root[data-motion='light'] .account-card-enter-active),
+:global(:root[data-motion='light'] .account-card-leave-active) {
   transition: opacity 100ms ease;
 }
-:global(:root[data-motion='reduced']) .account-card-enter-active,
-:global(:root[data-motion='reduced']) .account-card-leave-active,
-:global(:root[data-motion='reduced']) .account-tab-indicator {
+:global(:root[data-motion='reduced'] .account-card-enter-active),
+:global(:root[data-motion='reduced'] .account-card-leave-active),
+:global(:root[data-motion='reduced'] .account-tab-indicator) {
   transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -545,6 +559,15 @@ onUnmounted(() => {
   }
   .account-heading h2 {
     font-size: 24px;
+  }
+  .account-tabs button {
+    font-size: 11px;
+    gap: 5px;
+    padding-inline: 2px;
+    white-space: nowrap;
+  }
+  .account-status-dot {
+    flex-shrink: 0;
   }
 }
 </style>

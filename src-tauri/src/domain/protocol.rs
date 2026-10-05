@@ -65,7 +65,16 @@ pub const EVENTS: [(&str, &str); 6] = [
     ("download_progress", "download:progress"),
 ];
 pub const PLANNED_COMMANDS: [&str; 0] = [];
-pub const IMPLEMENTED_COMMANDS: [&str; 117] = [
+pub const IMPLEMENTED_COMMANDS: [&str; 126] = [
+    "hikarifield_account",
+    "login_hikarifield",
+    "logout_hikarifield",
+    "sync_hikarifield",
+    "get_hikarifield_settings",
+    "set_hikarifield_path",
+    "start_hikarifield_download",
+    "list_hikarifield_downloads",
+    "cancel_hikarifield_download",
     "check_app_update",
     "get_app_update_status",
     "download_app_update",

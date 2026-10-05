@@ -107,6 +107,15 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::hikarifield_account,
+            commands::login_hikarifield,
+            commands::logout_hikarifield,
+            commands::sync_hikarifield,
+            commands::get_hikarifield_settings,
+            commands::set_hikarifield_path,
+            commands::start_hikarifield_download,
+            commands::list_hikarifield_downloads,
+            commands::cancel_hikarifield_download,
             commands::health_check,
             commands::check_app_update,
             commands::get_app_update_status,

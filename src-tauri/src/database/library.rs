@@ -453,6 +453,7 @@ impl Database {
         Ok(GameDetail {
             metadata_locked: self.metadata_locked(id)?,
             summary: GameSummary {
+                hikari_field: self.hf_entry(id)?,
                 id: id.into(),
                 title: row.0,
                 title_zh: row.1,
@@ -843,7 +844,7 @@ impl Database {
         }
         let tx = self.connection.transaction()?;
         tx.execute("DELETE FROM settings WHERE key IN (SELECT 'playtime.corrections.'||id FROM play_sessions WHERE game_id=?1) OR key IN (SELECT 'playtime.checkpoint.'||id FROM play_sessions WHERE game_id=?1)",[id])?;
-        tx.execute("DELETE FROM settings WHERE key='metadata.candidates.'||?1 OR key IN (SELECT 'scan.candidates.'||id FROM game_installations WHERE game_id=?2) OR key IN (SELECT 'launch.idle.'||id FROM game_installations WHERE game_id=?2)",params![id,id])?;
+        tx.execute("DELETE FROM settings WHERE key='hikarifield.game.'||?1 OR key='metadata.candidates.'||?1 OR key IN (SELECT 'scan.candidates.'||id FROM game_installations WHERE game_id=?2) OR key IN (SELECT 'launch.idle.'||id FROM game_installations WHERE game_id=?2)",params![id,id])?;
         tx.execute(
             "DELETE FROM settings WHERE key='metadata.locked.'||?1",
             [id],

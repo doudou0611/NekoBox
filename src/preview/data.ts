@@ -6,6 +6,7 @@ export type PreviewStatus =
   | 'dropped'
   | 'pending_confirmation';
 export interface PreviewGame {
+  hikari_field?: { app_id: number; released: boolean } | null;
   game_id: string;
   title: string;
   subtitle: string;

@@ -43,6 +43,7 @@ export interface Tag {
   color: string | null;
 }
 export interface GameSummary {
+  hikari_field?: { app_id: number; released: boolean } | null;
   id: string;
   title: string;
   title_zh: string | null;

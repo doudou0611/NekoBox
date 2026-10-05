@@ -36,6 +36,14 @@ import AccountDialog from './components/AccountDialog.vue';
 import { accountDialog, openAccountDialog } from './stores/accountDialog';
 import { refreshHikariAccount } from './stores/hikarinagiAccount';
 import SidebarDock from './components/SidebarDock.vue';
+import HikariFieldFolderDialog from './components/HikariFieldFolderDialog.vue';
+import {
+  hikariField,
+  loadHikariField,
+  refreshOwnedHikariField,
+  startHikariPolling,
+  stopHikariPolling,
+} from './stores/hikariField';
 import { refreshBangumi } from './stores/bangumi';
 import {
   appSettings,
@@ -154,6 +162,11 @@ onMounted(() => {
       notify(cause instanceof Error ? cause.message : '无法读取启动设置。'),
     );
   void refreshLibrary();
+  void loadHikariField().then(() => {
+    if (hikariField.account.status === 'authenticated')
+      void refreshOwnedHikariField();
+  });
+  if (desktop) startHikariPolling();
   void refreshBangumi();
   void refreshHikariAccount();
   if (desktop)
@@ -185,6 +198,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(playtimeTimer);
   stopBackupPolling();
+  stopHikariPolling();
   window.removeEventListener('keydown', onShortcut);
   if (desktop)
     document.removeEventListener('contextmenu', preventDesktopContextMenu);
@@ -346,6 +360,7 @@ onUnmounted(() => {
       </main>
     </div>
     <SharedTransitionLayer /><PreviewFeedback /><GameDragOverlay />
+    <HikariFieldFolderDialog v-if="hikariField.folder_game" />
     <AccountDialog
       v-if="accountDialog.open"
       :initial-provider="accountDialog.provider"

@@ -1,5 +1,5 @@
 import { reactive } from 'vue';
-export type AccountProvider = 'bangumi' | 'hikarinagi';
+export type AccountProvider = 'bangumi' | 'hikarinagi' | 'hikarifield';
 export const accountDialog = reactive({
   open: false,
   provider: 'bangumi' as AccountProvider,

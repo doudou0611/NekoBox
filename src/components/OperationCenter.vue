@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import PreviewIcon from './preview/PreviewIcon.vue';
+import { formatBytes } from '../stores/hikariField';
 import {
   PopoverRoot,
   PopoverTrigger,
@@ -91,7 +92,17 @@ function statusLabel(status: OperationItem['status']) {
               </div>
               <p>{{ item.message }}</p>
               <small v-if="item.total"
-                >{{ item.progress ?? 0 }} / {{ item.total }} 项已处理</small
+                >{{
+                  item.progress_unit === 'bytes'
+                    ? formatBytes(item.progress ?? 0)
+                    : (item.progress ?? 0)
+                }}
+                /
+                {{
+                  item.progress_unit === 'bytes'
+                    ? formatBytes(item.total)
+                    : `${item.total} 项已处理`
+                }}</small
               >
               <div
                 v-if="item.total"
@@ -107,6 +118,23 @@ function statusLabel(status: OperationItem['status']) {
                     width: `${Math.min(100, ((item.progress ?? 0) / item.total) * 100)}%`,
                   }"
                 ></span>
+              </div>
+              <div class="operation-actions">
+                <button
+                  v-if="item.cancel"
+                  class="quiet-button"
+                  type="button"
+                  @click="item.cancel()"
+                >
+                  取消下载</button
+                ><button
+                  v-if="item.retry"
+                  class="quiet-button"
+                  type="button"
+                  @click="item.retry()"
+                >
+                  继续下载
+                </button>
               </div>
               <button
                 v-if="item.open_details"

@@ -8,6 +8,7 @@ pub mod bangumi;
 pub mod bangumi_account;
 mod credential;
 pub mod detail_metadata;
+pub mod hikarifield;
 pub mod hikarinagi;
 pub mod hikarinagi_account;
 mod hikarinagi_app;
@@ -224,6 +225,9 @@ pub struct Backend {
     pub launch_lock: Arc<Mutex<()>>,
     pub bangumi_lock: Arc<Mutex<()>>,
     pub translation_lock: Arc<Mutex<()>>,
+    pub hikarifield_lock: Arc<Mutex<()>>,
+    pub hikarifield_worker: Arc<Mutex<()>>,
+    pub hikarifield_downloads: Arc<Mutex<hikarifield::Manager>>,
     pub hikarinagi_lock: Arc<Mutex<()>>,
     pub hikarinagi_account_lock: Arc<Mutex<()>>,
     pub hikarinagi_login: Arc<Mutex<hikarinagi_account::LoginFlow>>,
@@ -266,6 +270,18 @@ impl Backend {
             .launch_lock
             .lock()
             .map_err(|_| ServiceError(ErrorCode::InternalError, "启动服务需要重新启动。"))?;
+        if !collection
+            && self
+                .hikarifield_downloads
+                .lock()
+                .map_err(|_| invalid("下载服务需要重启。"))?
+                .tasks
+                .iter()
+                .any(|t| t.game_id == id && matches!(t.status.as_str(), "queued" | "running"))
+        {
+            return Err(invalid("请先完成或取消此游戏的下载，再移除库记录。"));
+        }
+
         let mut db = self.database()?;
         if db
             .setting::<serde_json::Value>("saves.restore.pending")?
@@ -338,6 +354,9 @@ impl Backend {
             launch_lock: Arc::new(Mutex::new(())),
             bangumi_lock: Arc::new(Mutex::new(())),
             translation_lock: Arc::new(Mutex::new(())),
+            hikarifield_lock: Arc::new(Mutex::new(())),
+            hikarifield_worker: Arc::new(Mutex::new(())),
+            hikarifield_downloads: Arc::new(Mutex::new(hikarifield::Manager::default())),
             hikarinagi_lock: Arc::new(Mutex::new(())),
             hikarinagi_account_lock: Arc::new(Mutex::new(())),
             hikarinagi_login: Arc::new(Mutex::new(hikarinagi_account::LoginFlow::default())),

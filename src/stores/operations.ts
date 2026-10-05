@@ -12,6 +12,9 @@ export interface OperationItem {
   message: string;
   created_at: number;
   completed_at: number | null;
+  cancel?: () => void;
+  retry?: () => void;
+  progress_unit?: 'bytes';
   open_details: (() => void) | null;
 }
 

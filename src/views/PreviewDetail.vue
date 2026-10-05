@@ -13,6 +13,11 @@ import {
   launchGame,
 } from '../stores/library';
 import LocalInstallation from '../components/LocalInstallation.vue';
+import {
+  hikariField,
+  gameDownload,
+  startHikariDownload,
+} from '../stores/hikariField';
 import PlaytimePanel from '../components/PlaytimePanel.vue';
 import SavePanel from '../components/SavePanel.vue';
 import GameInformation from '../components/GameInformation.vue';
@@ -28,6 +33,13 @@ const game = computed(() =>
   preview.games.find((item) => item.game_id === route.params.game_id),
 );
 const tab = ref('overview');
+const remoteOnly = computed(
+  () => Boolean(game.value?.hikari_field) && !game.value?.launchable,
+);
+const download = computed(() => gameDownload(game.value?.game_id || ''));
+const startingDownload = computed(() =>
+  hikariField.starting.includes(game.value?.game_id || ''),
+);
 const { atmosphere } = useCoverAtmosphere(
   () => (preview.missing_cover ? undefined : game.value?.cover_url),
   () => preview.theme,
@@ -140,16 +152,45 @@ function moveTab(event: KeyboardEvent) {
               >暂无标签</span
             >
           </div>
-          <p class="detail-intro">{{ game.description.split('\n')[0] }}</p>
+          <p class="detail-intro">
+            {{
+              remoteOnly
+                ? '已拥有此游戏 · HIKARI FIELD'
+                : game.description.split('\n')[0]
+            }}
+          </p>
           <div class="detail-actions">
             <button
               class="primary-button"
+              :disabled="
+                remoteOnly &&
+                Boolean(
+                  download || startingDownload || !game.hikari_field?.released,
+                )
+              "
               @click="
-                desktop ? launchGame(game.game_id) : showDemoAction('启动游戏')
+                remoteOnly
+                  ? startHikariDownload(game.game_id)
+                  : desktop
+                    ? launchGame(game.game_id)
+                    : showDemoAction('启动游戏')
               "
             >
-              <PreviewIcon name="play" :size="18" />{{
-                desktop ? '启动游戏' : '启动故事 · 演示'
+              <PreviewIcon
+                :name="remoteOnly ? 'download' : 'play'"
+                :size="18"
+              />{{
+                remoteOnly
+                  ? download
+                    ? '正在下载…'
+                    : startingDownload
+                      ? '正在准备…'
+                      : !game.hikari_field?.released
+                        ? '暂未开放下载'
+                        : '下载游戏'
+                  : desktop
+                    ? '启动游戏'
+                    : '启动故事 · 演示'
               }}</button
             ><PreviewTooltip
               :text="game.favorite ? '取消演示收藏' : '加入演示收藏'"

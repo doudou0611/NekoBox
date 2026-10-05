@@ -1,3 +1,8 @@
+import type {
+  HikariFieldAccount,
+  HikariFieldSettings,
+  HikariFieldDownload,
+} from './hikarifield';
 import type { AppUpdateStatus } from './updates';
 import type {
   BackupConfigView,
@@ -123,6 +128,16 @@ export interface HealthStatus {
 }
 /** Actual implementation status is tracked in shared/protocol.json. */
 export interface CommandPayloads {
+  hikarifield_account: Record<string, never>;
+  login_hikarifield: { email: string; password: string };
+  logout_hikarifield: Record<string, never>;
+  sync_hikarifield: Record<string, never>;
+  get_hikarifield_settings: Record<string, never>;
+  set_hikarifield_path: { parent: string };
+  start_hikarifield_download: { game_id: string; depot?: string };
+  list_hikarifield_downloads: Record<string, never>;
+  cancel_hikarifield_download: { task_id: string };
+
   check_app_update: Record<string, never>;
   get_app_update_status: Record<string, never>;
   download_app_update: Record<string, never>;
@@ -331,6 +346,16 @@ export interface CommandPayloads {
   delete_save_snapshot: { snapshot_id: string; confirmed: true };
 }
 export interface CommandResults {
+  hikarifield_account: HikariFieldAccount;
+  login_hikarifield: HikariFieldAccount;
+  logout_hikarifield: HikariFieldAccount;
+  sync_hikarifield: { owned: number; imported: number };
+  get_hikarifield_settings: HikariFieldSettings;
+  set_hikarifield_path: HikariFieldSettings;
+  start_hikarifield_download: HikariFieldDownload;
+  list_hikarifield_downloads: HikariFieldDownload[];
+  cancel_hikarifield_download: boolean;
+
   check_app_update: AppUpdateStatus;
   get_app_update_status: AppUpdateStatus;
   download_app_update: AppUpdateStatus;
@@ -468,6 +493,15 @@ export interface CommandResults {
   open_external_source: boolean;
 }
 export const IMPLEMENTED_COMMANDS = [
+  'hikarifield_account',
+  'login_hikarifield',
+  'logout_hikarifield',
+  'sync_hikarifield',
+  'get_hikarifield_settings',
+  'set_hikarifield_path',
+  'start_hikarifield_download',
+  'list_hikarifield_downloads',
+  'cancel_hikarifield_download',
   'cache_remote_image',
   'open_bangumi_login',
   'start_metadata_refresh',

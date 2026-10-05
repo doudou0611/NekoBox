@@ -13,6 +13,7 @@ import {
 } from '../stores/settings';
 import type { AppSettings } from '../types/settings';
 import MetadataSettings from '../components/MetadataSettings.vue';
+import HikariFieldSettings from '../components/settings/HikariFieldSettings.vue';
 import TranslationSettings from '../components/TranslationSettings.vue';
 import DatabaseTransfer from '../components/DatabaseTransfer.vue';
 import MetadataRefresh from '../components/MetadataRefresh.vue';
@@ -305,6 +306,7 @@ onUnmounted(() => {
         </div>
       </header>
       <MetadataSettings />
+      <HikariFieldSettings />
       <SettingsSection
         title="封面与标签"
         description="图床选择相互独立。已保存的封面不自动替换。"

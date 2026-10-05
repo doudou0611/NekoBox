@@ -296,6 +296,7 @@ pub(crate) fn cache_image_for(backend: &Backend, provider: &str, url: &str) -> R
     let trusted = match provider {
         "bangumi" => trusted_image(url),
         "vndb" => trusted_vndb_image(url),
+        "hikarifield" => super::hikarifield::trusted_image(url),
         "hikarinagi" => super::hikarinagi::trusted_image(url),
         _ => false,
     };
@@ -332,6 +333,7 @@ pub(crate) fn cache_image_for(backend: &Backend, provider: &str, url: &str) -> R
         match provider {
             "bangumi" => trusted_image(&final_url),
             "vndb" => trusted_vndb_image(&final_url),
+            "hikarifield" => super::hikarifield::trusted_image(&final_url),
             "hikarinagi" => super::hikarinagi::trusted_image(&final_url),
             _ => false,
         }

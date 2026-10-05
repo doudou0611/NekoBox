@@ -5,6 +5,7 @@ mod account_sync;
 mod activity;
 pub(crate) mod application_backup;
 mod detail_metadata;
+mod hikarifield;
 mod home;
 mod library;
 mod metadata;

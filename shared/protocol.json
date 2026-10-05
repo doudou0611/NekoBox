@@ -87,6 +87,15 @@
     "download_progress": "download:progress"
   },
   "commands": {
+    "hikarifield_account": "implemented",
+    "login_hikarifield": "implemented",
+    "logout_hikarifield": "implemented",
+    "sync_hikarifield": "implemented",
+    "get_hikarifield_settings": "implemented",
+    "set_hikarifield_path": "implemented",
+    "start_hikarifield_download": "implemented",
+    "list_hikarifield_downloads": "implemented",
+    "cancel_hikarifield_download": "implemented",
     "cache_remote_image": "implemented",
     "open_bangumi_login": "implemented",
     "start_metadata_refresh": "implemented",

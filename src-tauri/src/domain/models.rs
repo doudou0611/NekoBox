@@ -20,6 +20,8 @@ pub struct Tag {
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameSummary {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hikari_field: Option<crate::backend::hikarifield::LibraryEntry>,
     pub id: String,
     pub title: String,
     pub title_zh: Option<String>,

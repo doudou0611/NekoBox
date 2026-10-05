@@ -1,0 +1,26 @@
+# HIKARI FIELD 游戏库与下载
+
+头像 →「账户与同步」→「HIKARI FIELD」，使用商城邮箱和密码登录。登录成功后自动同步已购买的正式版游戏；再次启动 NekoBox 时也会同步。已拥有记录独立持久化，退出账户不会移除游戏、个人评分或安装文件。HIKARI FIELD 不加入刮削来源，导入仅使用官方名称、封面和安装信息。
+
+未安装的游戏使用现有详情页，主按钮为「下载游戏」；尚未开放下载的游戏显示相应状态。第一次下载时选择父目录，NekoBox 创建 `HikariFieldGames`；直接选择已有的同名目录不会重复嵌套。设置 → 游戏库 →「HIKARI FIELD 游戏目录」可查看和更改位置。更改仅影响新的下载，原安装入口保持可用。
+
+左下角后台任务显示队列、下载字节、速度、校验/安装状态，支持取消与继续。中断后保留已校验数据块，重启不自动消耗下载流量；再次点击下载或继续即可复用。安装完成后登记在现有本地安装系统，主按钮变为「启动游戏」，沿用启动配置与游玩记录。下载期间禁止启动同一游戏。
+
+## 协议与持久化
+
+- 基于官方 1.2.0 客户端协议：`auth/login`、`auth/refresh`、`auth/logout`、`user/info`、`apps`、`files/`、`builds/sign`、`builds/bytes`、`apps/installed`。
+- 仅导入 `have = 1` 的正式版游戏，排除试玩及音声。购买但尚未开放下载的作品仍保留在库中。开始下载时重新核实当前账户的购买权限。
+- 密码不保存；访问令牌通过既有系统凭据库保存，按数据目录隔离。后台定期刷新并对过期授权重试。应用数据库仅保存账户显示信息、购买记录、目录、稳定的 UUID 和任务状态。
+- 官方目录规则、游戏相对目录、分块命名、Range 下载、ZIP 解压、文件合并及 `install.json` 均沿用客户端方式。默认选择 `main` depot；没有 `main` 时使用首个可用版本。
+- 块与完整文件均验证 SHA-1；拒绝目录穿越、符号链接、越界 Range 和异常 ZIP。下载沿用应用代理设置，保留官方设备与流量限制，并发送下载流量及安装结果。
+- 购买记录保存在 `settings` 的 `hikarifield.game.<game_id>` 下，以官方 app ID 保证幂等。唯一同名本地游戏可关联已有记录，个人标题、评分、状态和启动配置保留；安装使用现有 `local` 来源，不更改数据库版本。
+
+## 验证
+
+常规检查：`pnpm check`、`pnpm rust:check`、`pnpm rust:fmt`、`pnpm rust:lint`、`pnpm rust:test`。
+
+后端隔离测试覆盖购买过滤、重复同步、个人资料保留、数据库重开、目录持久化、HTTP Range → ZIP → 合并 → 原生安装登记、复用已校验块、损坏/路径拒绝、任务中断恢复以及下载期间启动保护。
+
+启动 `pnpm dev` 后运行 `node scripts/verify-hikarifield.mjs`，通过隔离 IPC 数据验证登录导入、首次选目录、任务进度、安装后启动入口、设置、三账户键盘导航、390px 窗口及减少动效。截图输出到 `.tools/hikarifield-browser/`。`node scripts/verify-accounts.mjs` 验证原有账户流程。浏览器脚本需要本机 `.tools/browser-check` Playwright 和 Microsoft Edge，可通过 `BROWSER_EXECUTABLE` 指定浏览器。
+
+真实 HIKARI FIELD 账户登录、购买资源的实际下载，以及 Windows 原生启动/游玩跟踪仍需实机验收。隔离测试不证明这些外部环节已完成。请在桌面软件内输入凭据，不要把密码写入聊天或测试文件。

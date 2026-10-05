@@ -117,6 +117,7 @@ export function displayGame(
 ): PreviewGame {
   return {
     game_id: game.id,
+    hikari_field: game.hikari_field,
     title: game.title,
     subtitle:
       game.title_ja?.trim() && game.title_ja.trim() !== game.title.trim()

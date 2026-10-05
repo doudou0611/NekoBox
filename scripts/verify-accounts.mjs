@@ -86,6 +86,9 @@ try {
           data,
         });
         if (command === 'hikarinagi_account') return success(window.account);
+        if (command === 'hikarifield_account') return success(signedOut);
+        if (command === 'get_hikarifield_settings')
+          return success({ root: null, uuid: '' });
         if (command === 'begin_hikarinagi_login') {
           window.windows.push({
             label: `hikarinagi-login-fixture-${window.loginIndex + 1}`,
@@ -296,7 +299,8 @@ try {
     document.documentElement.dataset.theme = 'dark';
   });
   await page.getByRole('tab', { name: 'Bangumi' }).focus();
-  await page.keyboard.press('End');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight');
   await page
     .getByRole('heading', { name: '登录 Hikarinagi', exact: true })
     .waitFor();
@@ -320,11 +324,18 @@ try {
     await page.evaluate(() => document.activeElement.id),
     'account-tab-hikarinagi',
   );
+  await page.waitForFunction(
+    () =>
+      !document.querySelector(
+        '.account-card-enter-active, .account-card-leave-active',
+      ),
+  );
   for (let i = 0; i < 12; i++) {
     await page.keyboard.press('Tab');
     assert.equal(
       await dialog.evaluate((node) => node.contains(document.activeElement)),
       true,
+      `Tab ${i}: ${await page.evaluate(() => document.activeElement.outerHTML)}`,
     );
   }
   checks += 5;

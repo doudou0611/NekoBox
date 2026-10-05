@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { bangumi } from '../stores/bangumi';
 import { hikariAccount } from '../stores/hikarinagiAccount';
+import { hikariField } from '../stores/hikariField';
 const account = computed(() =>
   bangumi.account.profile ? bangumi : hikariAccount,
 );
@@ -15,7 +16,9 @@ const account = computed(() =>
       @error="account.avatar_failed = true"
     />
     <span v-else>{{
-      account.account.profile?.nickname?.slice(0, 1) || 'G'
+      account.account.profile?.nickname?.slice(0, 1) ||
+      hikariField.account.profile?.name.slice(0, 1) ||
+      'G'
     }}</span>
   </span>
 </template>
