@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   createUpdateManifest,
+  validateReleaseManifest,
   writeReleaseChecksums,
 } from './release-update.mjs';
 
@@ -17,9 +18,55 @@ test('complete manifests pin both architectures to the same release and embed si
   assert.equal(manifest.platforms['windows-x86_64'].signature, 'x64-signature');
   assert.equal(
     manifest.platforms['windows-aarch64'].url,
-    'https://github.com/doudou0611/NekoBox/releases/download/v0.1.10/NekoBox_0.1.10_arm64-setup.exe',
+    'https://github.com/doudou0611/NekoBox/releases/download/0.1.10/NekoBox_0.1.10_arm64-setup.exe',
   );
   assert.match(manifest.portable['windows-x86_64'].url, /x64-portable.zip$/);
+});
+test('published manifests must use the actual tag even when all version numbers match', () => {
+  const version = '0.1.3';
+  const repository = 'https://github.com/doudou0611/NekoBox';
+  const files = ['latest.json', 'SHA256SUMS.txt'];
+  for (const arch of ['x64', 'arm64'])
+    for (const suffix of ['-setup.exe', '-setup.exe.sig', '-portable.zip'])
+      files.push(`NekoBox_${version}_${arch}${suffix}`);
+  const release = {
+    tag_name: version,
+    html_url: `${repository}/releases/tag/${version}`,
+    draft: false,
+    prerelease: false,
+    assets: files.map((name) => ({
+      name,
+      browser_download_url: `${repository}/releases/download/${version}/${name}`,
+    })),
+  };
+  const create = (tag) =>
+    createUpdateManifest({
+      version,
+      tag,
+      signatures: { x64: 'x', arm64: 'a' },
+    });
+  assert.doesNotThrow(() => validateReleaseManifest(release, create(version)));
+  for (const tag of ['V0.1.3', 'v0.1.3'])
+    assert.throws(
+      () => validateReleaseManifest(release, create(tag)),
+      /实际 Release 标签/,
+    );
+  const badPortable = create(version);
+  badPortable.portable['windows-aarch64'].url = badPortable.portable[
+    'windows-aarch64'
+  ].url.replace('/0.1.3/', '/V0.1.3/');
+  assert.throws(() => validateReleaseManifest(release, badPortable));
+  assert.throws(() =>
+    validateReleaseManifest({ ...release, prerelease: true }, create(version)),
+  );
+  assert.throws(
+    () =>
+      validateReleaseManifest(
+        { ...release, assets: release.assets.slice(1) },
+        create(version),
+      ),
+    /latest.json/,
+  );
 });
 test('uppercase release tags keep download URLs case exact and reject mismatched versions', () => {
   const signatures = { x64: 'x', arm64: 'a' };

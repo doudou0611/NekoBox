@@ -4,6 +4,7 @@ export interface AppSettings {
   palette: PaletteId;
   glass_enabled: boolean;
   startup_page: 'home' | 'games';
+  gallery_columns: number;
   bangumi_cover_source: 'original' | 'hikarinagi';
   vndb_cover_source: 'original' | 'hikarinagi';
   tag_limit: number;
@@ -23,6 +24,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   palette: 'wisteria',
   glass_enabled: true,
   startup_page: 'home',
+  gallery_columns: 5,
   bangumi_cover_source: 'hikarinagi',
   vndb_cover_source: 'hikarinagi',
   tag_limit: 10,

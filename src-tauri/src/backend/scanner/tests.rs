@@ -128,6 +128,78 @@ fn read_only_scan_imports_deduplicates_and_ignores_helpers() {
 }
 
 #[test]
+fn reimport_preview_marks_existing_paths_and_discovers_new_games_without_database_writes() {
+    let f = Fixture::new();
+    let old_path = f.game("library/old-game");
+    let root = old_path.parent().unwrap();
+    let request = PreviewImportRequest {
+        roots: vec![path_text(root).unwrap()],
+        follow_symlinks: false,
+        single_directory: false,
+        single_executable: None,
+    };
+    let first = preview_import(&f.backend, &request).unwrap();
+    assert_eq!(first.items.len(), 1);
+    assert!(first.items[0].existing_game_id.is_none());
+    let existing = manual_import(
+        &f.backend,
+        &ImportGameRequest {
+            directory: path_text(&old_path).unwrap(),
+            title: "已整理的作品".into(),
+            game_id: None,
+            skip_metadata: true,
+        },
+    )
+    .unwrap();
+    let original = serde_json::to_value(&existing).unwrap();
+    f.game("library/new-game-a");
+    f.game("library/new-game-b");
+    let next = preview_import(&f.backend, &request).unwrap();
+    assert_eq!(next.items.len(), 3);
+    let old = next
+        .items
+        .iter()
+        .find(|item| item.directory == path_text(&old_path).unwrap())
+        .unwrap();
+    assert_eq!(
+        old.existing_game_id.as_deref(),
+        Some(existing.summary.id.as_str())
+    );
+    assert!(old.duplicate_reason.is_some());
+    assert_eq!(
+        next.items
+            .iter()
+            .filter(|item| item.existing_game_id.is_none())
+            .count(),
+        2
+    );
+    assert_eq!(
+        serde_json::to_value(
+            f.backend
+                .database()
+                .unwrap()
+                .get_game(&existing.summary.id)
+                .unwrap()
+        )
+        .unwrap(),
+        original
+    );
+    for item in next
+        .items
+        .iter()
+        .filter(|item| item.existing_game_id.is_none())
+    {
+        assert!(f
+            .backend
+            .database()
+            .unwrap()
+            .installation_conflict(&item.directory)
+            .unwrap()
+            .is_none());
+    }
+}
+
+#[test]
 fn folder_first_scan_imports_one_record_per_root_child() {
     let f = Fixture::new();
     for name in ["game-a", "game-b", "game-c"] {

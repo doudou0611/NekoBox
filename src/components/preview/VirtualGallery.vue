@@ -15,6 +15,7 @@ import { galleryWindow, galleryLayouts } from '../../services/virtualGallery';
 import CoverCard from './CoverCard.vue';
 import LibraryContextMenu from '../LibraryContextMenu.vue';
 import type { GameMenuAction } from '../../services/libraryContextActions';
+import { appSettings } from '../../stores/settings';
 const props = defineProps<{
   games: PreviewGame[];
   view: GalleryView;
@@ -132,7 +133,7 @@ function schedule() {
   if (!frame) frame = requestAnimationFrame(measure);
 }
 watch(
-  () => [props.view, props.games],
+  () => [props.view, props.games, appSettings.value.gallery_columns],
   async () => {
     await nextTick();
     measure();
@@ -165,6 +166,7 @@ onUnmounted(() => {
       tag="section"
       name="gallery"
       class="gallery-stage"
+      :style="{ '--gallery-columns': appSettings.value.gallery_columns }"
       :class="[`view-${view}`, { 'virtual-gallery': virtual }]"
       aria-label="作品列表"
       :data-total-games="games.length"

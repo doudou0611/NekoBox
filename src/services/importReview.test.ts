@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   isPrepared,
+  isImported,
+  importReviewStats,
   needsScrape,
   prepareReview,
   selectReviewMatch,
@@ -97,5 +99,52 @@ describe('import preparation and retry boundaries', () => {
     row.selected = true;
     row.preview!.existing_game_id = 'existing';
     expect(needsScrape(row)).toBe(false);
+  });
+  it('reimporting a folder only counts new games, independently of selection or old scrape state', () => {
+    const existing = item();
+    existing.preview!.existing_game_id = 'existing';
+    existing.preparation = preparation;
+    existing.scrape_status = 'scraped';
+    const ready = item();
+    ready.preparation = preparation;
+    ready.scrape_status = 'scraped';
+    const pending = item();
+    const unchecked = item();
+    unchecked.selected = false;
+    expect(isImported(existing)).toBe(true);
+    expect(importReviewStats([existing, ready, pending, unchecked])).toEqual({
+      recognized: 3,
+      imported: 1,
+      scraped: 1,
+      pending: 2,
+      selected: 2,
+    });
+    expect([existing, ready, pending, unchecked].filter(needsScrape)).toEqual([
+      pending,
+    ]);
+  });
+  it('all existing paths produce zero new work, and successful partial imports leave only failures to retry', () => {
+    const first = item(),
+      second = item();
+    first.preview!.existing_game_id = 'existing';
+    expect(importReviewStats([first])).toEqual({
+      recognized: 0,
+      imported: 1,
+      scraped: 0,
+      pending: 0,
+      selected: 0,
+    });
+    second.scrape_status = 'failed';
+    expect(importReviewStats([first, second])).toEqual({
+      recognized: 1,
+      imported: 1,
+      scraped: 0,
+      pending: 1,
+      selected: 1,
+    });
+    second.preview!.existing_game_id = 'newly-imported';
+    second.selected = false;
+    expect(importReviewStats([first, second]).recognized).toBe(0);
+    expect([first, second].filter(needsScrape)).toHaveLength(0);
   });
 });

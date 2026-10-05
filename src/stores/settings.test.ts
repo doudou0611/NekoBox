@@ -19,6 +19,7 @@ it('loads legacy preferences with an empty sidebar order', async () => {
   await store.loadAppSettings();
   expect(store.appSettings.value.sidebar_game_order).toEqual({});
   expect(store.appSettings.value.theme).toBe('dark');
+  expect(store.appSettings.value.gallery_columns).toBe(5);
 });
 it('queued order and theme writes retain each other and survive reloading settings', async () => {
   let saved = structuredClone(DEFAULT_SETTINGS);
@@ -35,11 +36,16 @@ it('queued order and theme writes retain each other and survive reloading settin
       ['sidebar_game_order'],
     ),
     store.saveAppSettings({ ...before, theme: 'dark' }, ['theme']),
+    store.saveAppSettings({ ...before, gallery_columns: 9 }, [
+      'gallery_columns',
+    ]),
   ]);
   expect(saved.theme).toBe('dark');
+  expect(saved.gallery_columns).toBe(9);
   expect(saved.sidebar_game_order.favorites).toEqual(['b', 'a']);
   store.appSettings.loaded = false;
   await store.loadAppSettings();
+  expect(store.appSettings.value.gallery_columns).toBe(9);
   expect(store.appSettings.value.sidebar_game_order.favorites).toEqual([
     'b',
     'a',

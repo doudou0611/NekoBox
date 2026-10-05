@@ -21,6 +21,7 @@ import SettingsSwitch from '../components/settings/SettingsSwitch.vue';
 import SettingsChoice from '../components/settings/SettingsChoice.vue';
 import SettingsSection from '../components/settings/SettingsSection.vue';
 import AppUpdates from '../components/settings/AppUpdates.vue';
+import GalleryColumns from '../components/settings/GalleryColumns.vue';
 
 const route = useRoute();
 const chapters = [
@@ -245,6 +246,26 @@ onUnmounted(() => {
                   :style="{ background: palette[preview.theme][6] }" /><i
                   :style="{ background: palette[preview.theme][1] }" /></span
               ><strong>{{ palette.name }}</strong>
+            </button>
+          </div>
+        </div>
+      </SettingsSection>
+      <SettingsSection
+        title="作品陈列"
+        description="按你的习惯，调整游戏库封面的排列密度。"
+      >
+        <div class="settings-card">
+          <GalleryColumns
+            v-model="draft.gallery_columns"
+            :disabled="busy || !appSettings.loaded"
+          />
+          <div class="preference-actions">
+            <button
+              class="secondary-button"
+              :disabled="busy || !appSettings.loaded"
+              @click="save(['gallery_columns'])"
+            >
+              保存网格布局
             </button>
           </div>
         </div>

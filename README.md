@@ -134,7 +134,7 @@ src-tauri/target/aarch64-pc-windows-msvc/release/
 1. 同步修改 `package.json`、`src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 的版本，使用完整 SemVer，例如 `0.1.2`，并更新 Cargo 锁文件。
 2. 配置 `TAURI_SIGNING_PRIVATE_KEY`（私钥文件路径或内容）；有密码时同时配置 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。本机构建脚本也会读取用户配置目录中的 `~/.config/NekoBox/updater.key`。私钥与 `.pub` 公钥文件应妥善备份，私钥不能提交到仓库或上传到 Release。`tauri.conf.json` 中的公钥必须与该私钥对应；后续版本继续使用同一密钥。
 3. 运行 `pnpm desktop:build`。脚本顺序构建 x64 与 ARM64，生成 `.sig` 签名、便携包和更新清单，整理到 `.tools/releases/v版本号/`。分别构建两种架构时，完成后运行 `pnpm release:manifest` 汇总。
-4. 在 GitHub 新建草稿 Release，标签默认使用 **`v版本号`**，例如 `v0.1.2`。如需 `0.1.2` 或 `V0.1.2`，构建或生成清单前设置 `NEKOBOX_RELEASE_TAG=0.1.2` 或 `NEKOBOX_RELEASE_TAG=V0.1.2`。清单链接的标签必须与实际 Release 完全一致，区分大小写。上传两个 `-setup.exe`、两个 `-portable.zip`、两个 `-setup.exe.sig`、`latest.json` 和 `SHA256SUMS.txt`，共 **8 个附件**。写好更新说明，全部上传完成后再发布为最新正式版本；Pre-release 不参与当前客户端的自动更新检查。
+4. 在 GitHub 新建草稿 Release，标签默认使用**纯版本号**，例如 `0.1.3`，与本仓库现有发布保持一致。界面中的版本称呼“V0.1.3”不改变 Release 标签。只有实际标签采用 `v0.1.3` 或 `V0.1.3` 时，才在构建或生成清单前设置 `NEKOBOX_RELEASE_TAG=v0.1.3` 或 `NEKOBOX_RELEASE_TAG=V0.1.3`。清单链接的标签必须与实际 Release 完全一致，区分大小写。上传两个 `-setup.exe`、两个 `-portable.zip`、两个 `-setup.exe.sig`、`latest.json` 和 `SHA256SUMS.txt`，共 **8 个附件**。写好更新说明，全部上传完成后再发布为最新正式版本；Pre-release 不参与当前客户端的自动更新检查。发布后运行 `pnpm release:verify`，核验线上清单与实际标签、附件和签名是否一致。
 5. 用旧的、已启用更新功能的 Windows 安装版验证检查、下载、签名校验、安装和数据保留。便携版分别验证 x64 / ARM64 下载入口。
 
 `latest.json` 包含版本、说明、日期和 `windows-x86_64` / `windows-aarch64` 的下载地址与签名**内容**，下载地址固定到对应版本标签。可在构建或生成清单前设置 `NEKOBOX_RELEASE_NOTES_PATH` 指向更新说明文件，写入清单。软件只检查正式版本，不自动下载或强制安装；缺少清单的旧 Release 会提供手动更新入口。

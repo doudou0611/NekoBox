@@ -1343,8 +1343,8 @@ summary:focus-visible {
 }
 .gallery-stage {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  column-gap: var(--space-24);
+  grid-template-columns: repeat(var(--gallery-columns, 5), minmax(0, 1fr));
+  column-gap: clamp(10px, calc(120px / var(--gallery-columns, 5)), 24px);
   row-gap: var(--space-32);
   position: relative;
 }
@@ -1389,7 +1389,7 @@ summary:focus-visible {
 }
 .view-wall {
   gap: var(--space-12);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--gallery-columns, 5), minmax(0, 1fr));
 }
 .view-wall .card-art {
   border-radius: var(--radius-sm);
@@ -2285,9 +2285,6 @@ summary:focus-visible {
   }
 }
 @media (min-width: 1440px) {
-  .gallery-stage:not(.view-list) {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
   .hero-cover-frame {
     width: 250px;
     right: 9%;

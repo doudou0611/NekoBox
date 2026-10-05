@@ -23,8 +23,24 @@ export function isPrepared(item: ScrapeReview) {
     !!item.preparation && ['scraped', 'manual'].includes(item.scrape_status)
   );
 }
+export function isImported(item: Pick<ScrapeReview, 'preview'>) {
+  return !!item.preview?.existing_game_id;
+}
+/** Previously imported paths are informational rows, never new scrape/import work. */
+export function importReviewStats(items: readonly ScrapeReview[]) {
+  const imported = items.filter(isImported).length;
+  const available = items.filter((item) => !isImported(item));
+  const scraped = available.filter(isPrepared).length;
+  return {
+    recognized: available.length,
+    imported,
+    scraped,
+    pending: available.length - scraped,
+    selected: available.filter((item) => item.selected).length,
+  };
+}
 export function needsScrape(item: ScrapeReview) {
-  return item.selected && !item.preview?.existing_game_id && !isPrepared(item);
+  return item.selected && !isImported(item) && !isPrepared(item);
 }
 /** Selecting a candidate never fetches metadata or marks the row as ready. */
 export function selectReviewMatch(

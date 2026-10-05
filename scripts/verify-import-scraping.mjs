@@ -22,7 +22,11 @@ try {
     'automatic',
     'cancel',
     'settings',
+    'duplicate-mixed',
+    'duplicate-all',
+    'duplicate-partial',
     'single',
+    'single-double-click',
     'single-failure',
     'single-cancel',
   ]) {
@@ -121,7 +125,13 @@ try {
             else if (command === 'preview_import') {
               data = {
                 items: Array.from(
-                  { length: scenario === 'automatic' ? 2 : 1 },
+                  {
+                    length: scenario.startsWith('duplicate')
+                      ? 3
+                      : scenario === 'automatic'
+                        ? 2
+                        : 1,
+                  },
                   (_, index) => ({
                     directory: `C:/fixture/game${index}`,
                     folder_name: `中文作品${index}`,
@@ -137,8 +147,16 @@ try {
                         }))
                       : [],
                     selected_executable: null,
-                    existing_game_id: null,
-                    duplicate_reason: null,
+                    existing_game_id:
+                      scenario.startsWith('duplicate') &&
+                      (scenario === 'duplicate-all' || index === 0)
+                        ? `existing-${index}`
+                        : null,
+                    duplicate_reason:
+                      scenario.startsWith('duplicate') &&
+                      (scenario === 'duplicate-all' || index === 0)
+                        ? '路径已在游戏库中'
+                        : null,
                   }),
                 ),
                 issue_count: 0,
@@ -195,9 +213,17 @@ try {
                 );
               });
             } else if (command === 'discard_import_metadata') data = 1;
-            else if (command === 'import_prepared_game')
-              data = { id: 'test-game' };
-            else if (command === 'backend_status')
+            else if (command === 'import_prepared_game') {
+              if (
+                scenario === 'duplicate-partial' &&
+                request.payload.directory.endsWith('game2') &&
+                !window.failedImportOnce
+              ) {
+                window.failedImportOnce = true;
+                return failure();
+              }
+              data = { id: request.payload.directory };
+            } else if (command === 'backend_status')
               data = {
                 data_directory: 'C:/fixture',
                 schema_version: 1,
@@ -322,15 +348,41 @@ try {
             .getAttribute('aria-pressed'),
           'true',
         );
-        await single.getByRole('button', { name: '确认刮削并导入' }).click();
+        assert.equal(
+          await page.evaluate(
+            () =>
+              window.requests.filter(
+                (request) => request.command === 'prepare_import_metadata',
+              ).length,
+          ),
+          0,
+          'single click must only select the candidate',
+        );
+        if (scenario === 'single-double-click')
+          await single.locator('.single-candidate').first().dblclick();
+        else
+          await single.getByRole('button', { name: '确认刮削并导入' }).click();
         await single
           .getByRole('alert')
           .filter({ hasText: '启动入口' })
           .waitFor();
+        assert.equal(
+          await page.evaluate(
+            () =>
+              window.requests.filter(
+                (request) => request.command === 'prepare_import_metadata',
+              ).length,
+          ),
+          0,
+          'missing executable must block scraping',
+        );
         await single
           .locator('.single-launch select')
           .selectOption('C:/fixture/game0/game.exe');
-        await single.getByRole('button', { name: '确认刮削并导入' }).click();
+        if (scenario === 'single-double-click')
+          await single.locator('.single-candidate').first().dblclick();
+        else
+          await single.getByRole('button', { name: '确认刮削并导入' }).click();
         if (scenario === 'single-failure') {
           await single
             .getByRole('alert')
@@ -345,12 +397,22 @@ try {
           await single.getByRole('button', { name: '确认刮削并导入' }).click();
         }
         await page.waitForFunction(() => window.pending.length === 1);
+        if (scenario === 'single-double-click') {
+          // Repeated events while the first request is pending must not import twice.
+          await single
+            .locator('.single-candidate')
+            .first()
+            .dispatchEvent('dblclick');
+          assert.equal(await page.evaluate(() => window.pending.length), 1);
+        }
         await page.evaluate(() => window.pending.shift()());
         await single.waitFor({ state: 'hidden' });
         const requests = await page.evaluate(() => window.requests);
         const preparation = requests.filter(
           (r) => r.command === 'prepare_import_metadata',
         );
+        if (scenario === 'single-double-click')
+          assert.equal(preparation.length, 1);
         assert(
           preparation.every(
             (r) =>
@@ -375,6 +437,165 @@ try {
     } else {
       await page.getByRole('button', { name: /导入游戏目录/ }).click();
       await page.locator('.review-card').first().waitFor();
+      if (scenario.startsWith('duplicate')) {
+        const cards = page.locator('.review-card');
+        const stats = () =>
+          page.locator('.review-stats strong').allTextContents();
+        const all = scenario === 'duplicate-all';
+        assert.deepEqual(
+          await stats(),
+          all ? ['0', '0', '0'] : ['2', '2', '0'],
+        );
+        assert.equal(
+          await page.locator('.review-imported-count').innerText(),
+          all ? '已导入（3）' : '已导入（1）',
+        );
+        const imported = cards.filter({
+          has: page.locator('.review-status[data-status="imported"]'),
+        });
+        assert.equal(await imported.count(), all ? 3 : 1);
+        assert.equal(
+          await imported.first().locator('.review-status').innerText(),
+          '已导入',
+        );
+        assert(
+          await imported.first().locator('input[type="checkbox"]').isDisabled(),
+        );
+        assert(
+          await imported
+            .first()
+            .locator('.review-search-name input')
+            .isDisabled(),
+        );
+        assert(
+          await imported
+            .first()
+            .getByRole('button', { name: '手动匹配' })
+            .isDisabled(),
+        );
+        const green = await imported.first().evaluate((el) => ({
+          border: getComputedStyle(el).borderColor,
+          success: getComputedStyle(document.documentElement)
+            .getPropertyValue('--success')
+            .trim(),
+        }));
+        const expected = await page.evaluate((color) => {
+          const e = document.createElement('span');
+          e.style.color = color;
+          document.body.append(e);
+          const c = getComputedStyle(e).color;
+          e.remove();
+          return c;
+        }, green.success);
+        await page.waitForTimeout(300);
+        assert.equal(
+          await imported
+            .first()
+            .evaluate((el) => getComputedStyle(el).borderColor),
+          expected,
+        );
+        if (all) {
+          for (const name of ['开始刮削', '后台运行', '确认导入'])
+            assert(
+              await page
+                .getByRole('button', { name, exact: true })
+                .isDisabled(),
+            );
+          assert(
+            !(await page.evaluate(() => window.requests)).some((r) =>
+              [
+                'search_metadata',
+                'prepare_import_metadata',
+                'import_prepared_game',
+                'begin_import_batch',
+              ].includes(r.command),
+            ),
+          );
+        } else {
+          await page
+            .getByRole('button', { name: '开始刮削', exact: true })
+            .click();
+          for (let i = 0; i < 2; i++) {
+            await page.waitForFunction(() => window.pending.length === 1);
+            await page.evaluate(() => window.pending.shift()());
+          }
+          await page.waitForFunction(
+            () => window.testOperations[0].status === 'completed',
+          );
+          assert.deepEqual(await stats(), ['2', '0', '2']);
+          const calls = await page.evaluate(() => window.requests);
+          assert.deepEqual(
+            calls
+              .filter((r) => r.command === 'prepare_import_metadata')
+              .map((r) => r.payload.directory),
+            ['C:/fixture/game1', 'C:/fixture/game2'],
+          );
+          assert.deepEqual(
+            calls
+              .filter((r) => r.command === 'search_metadata')
+              .map((r) => r.payload.query),
+            ['中文作品1', '中文作品2'],
+          );
+          assert.equal(
+            await page.evaluate(() => window.testOperations[0].total),
+            2,
+          );
+          await page.waitForTimeout(300);
+          assert.equal(
+            await imported
+              .first()
+              .evaluate((el) => getComputedStyle(el).borderColor),
+            await cards
+              .nth(1)
+              .evaluate((el) => getComputedStyle(el).borderColor),
+          );
+          if (scenario === 'duplicate-mixed')
+            await page
+              .locator('.local-import[open]')
+              .screenshot({ path: resolve(evidence, 'duplicate-mixed.png') });
+          await page
+            .getByRole('button', { name: '确认导入', exact: true })
+            .click();
+          if (scenario === 'duplicate-partial') {
+            await page.waitForFunction(() =>
+              window.testOperations.some(
+                (o) => o.kind === 'import' && o.status === 'failed',
+              ),
+            );
+            assert.equal(
+              await page.locator('.review-imported-count').innerText(),
+              '已导入（2）',
+            );
+            assert.deepEqual(await stats(), ['1', '1', '0']);
+            assert.equal(
+              await page
+                .locator('.review-status[data-status="imported"]')
+                .count(),
+              2,
+            );
+            await page
+              .getByRole('button', { name: '确认导入', exact: true })
+              .click();
+          }
+          await page.waitForFunction(() => !window.testLocal.import_open);
+          const commits = await page.evaluate(() =>
+            window.requests
+              .filter((r) => r.command === 'import_prepared_game')
+              .map((r) => r.payload.directory),
+          );
+          assert.deepEqual(
+            commits,
+            scenario === 'duplicate-partial'
+              ? ['C:/fixture/game1', 'C:/fixture/game2', 'C:/fixture/game2']
+              : ['C:/fixture/game1', 'C:/fixture/game2'],
+          );
+        }
+        assert.deepEqual(errors, []);
+        checks += 15;
+        await page.close();
+        continue;
+      }
+      assert.equal(await page.locator('.review-imported-count').count(), 0);
       if (scenario.startsWith('manual')) {
         await page.getByRole('button', { name: '手动匹配' }).click();
         assert.equal(

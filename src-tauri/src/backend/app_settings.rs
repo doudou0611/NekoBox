@@ -10,6 +10,7 @@ pub struct Settings {
     pub palette: String,
     pub glass_enabled: bool,
     pub startup_page: String,
+    pub gallery_columns: usize,
     pub bangumi_cover_source: String,
     pub vndb_cover_source: String,
     pub tag_limit: usize,
@@ -31,6 +32,7 @@ impl Default for Settings {
             palette: "wisteria".into(),
             glass_enabled: true,
             startup_page: "home".into(),
+            gallery_columns: 5,
             bangumi_cover_source: "hikarinagi".into(),
             vndb_cover_source: "hikarinagi".into(),
             tag_limit: 10,
@@ -72,6 +74,7 @@ impl Settings {
             ]
             .contains(&self.palette.as_str())
             || !["home", "games"].contains(&self.startup_page.as_str())
+            || !(3..=9).contains(&self.gallery_columns)
             || !["original", "hikarinagi"].contains(&self.bangumi_cover_source.as_str())
             || !["original", "hikarinagi"].contains(&self.vndb_cover_source.as_str())
             || !(1..=40).contains(&self.tag_limit)
@@ -125,6 +128,31 @@ pub fn save(b: &Backend, settings: Settings) -> Result<Settings> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn gallery_columns_default_bounds_and_persistence() {
+        let legacy: Settings = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
+        assert_eq!(legacy.gallery_columns, 5);
+        let mut settings = legacy;
+        for columns in 3..=9 {
+            settings.gallery_columns = columns;
+            assert!(settings.validate().is_ok());
+        }
+        for columns in [0, 2, 10, usize::MAX] {
+            settings.gallery_columns = columns;
+            assert!(settings.validate().is_err());
+        }
+        let root = std::env::temp_dir().join(id());
+        let b = Backend::open(root.join("data")).unwrap();
+        settings.gallery_columns = 9;
+        save(&b, settings).unwrap();
+        drop(b);
+        let reopened = Backend::open(root.join("data")).unwrap();
+        let saved = get(&reopened).unwrap();
+        assert_eq!(saved.gallery_columns, 9);
+        assert_eq!(saved.theme, "dark");
+        drop(reopened);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn sidebar_order_defaults_and_persistence_preserve_other_preferences() {
         let legacy: Settings = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();

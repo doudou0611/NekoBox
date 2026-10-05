@@ -73,6 +73,7 @@ struct Release {
 }
 #[derive(Deserialize)]
 struct Asset {
+    id: u64,
     name: String,
     browser_download_url: String,
 }
@@ -140,6 +141,22 @@ fn asset<'a>(release: &'a Release, name: &str) -> backend::Result<Option<&'a str
     }
     Ok(None)
 }
+fn manifest_endpoint(release: &Release) -> backend::Result<reqwest::Url> {
+    let url = asset(release, "latest.json")?.ok_or_else(invalid_release)?;
+    let id = release
+        .assets
+        .iter()
+        .find(|asset| asset.name == "latest.json")
+        .map(|asset| asset.id)
+        .filter(|id| *id > 0)
+        .ok_or_else(invalid_release)?;
+    let mut endpoint = reqwest::Url::parse(url).map_err(|_| invalid_release())?;
+    // Asset replacement preserves the filename but changes its id. Bust stale redirects.
+    endpoint
+        .query_pairs_mut()
+        .append_pair("asset_id", &id.to_string());
+    Ok(endpoint)
+}
 fn validate_release(release: &Release) -> backend::Result<Version> {
     let version = release_version(&release.tag_name)?;
     if release.draft
@@ -153,14 +170,19 @@ fn validate_release(release: &Release) -> backend::Result<Version> {
     Ok(version)
 }
 fn fetch_release() -> backend::Result<Release> {
+    let mut release_url = reqwest::Url::parse(RELEASE_API).map_err(|_| invalid_release())?;
+    release_url
+        .query_pairs_mut()
+        .append_pair("check_at", &backend::now());
     let response = backend::network::builder()
         .timeout(Duration::from_secs(20))
         .build()
         .and_then(|client| {
             client
-                .get(RELEASE_API)
+                .get(release_url)
                 .header("User-Agent", concat!("NekoBox/", env!("CARGO_PKG_VERSION")))
                 .header("Accept", "application/vnd.github+json")
+                .header("Cache-Control", "no-cache")
                 .header("X-GitHub-Api-Version", "2022-11-28")
                 .send()
         })
@@ -237,12 +259,12 @@ async fn check_inner(app: &tauri::AppHandle) -> backend::Result<UpdateStatus> {
     )?
     .map(str::to_owned);
     let manifest = asset(&release, "latest.json")?;
-    let update = if let Some(manifest) = manifest.filter(|_| installation() == "installer") {
+    let update = if manifest.is_some() && installation() == "installer" {
         let builder = app
             .updater_builder()
             .timeout(Duration::from_secs(20))
             .configure_client(backend::network::configure_async)
-            .endpoints(vec![manifest.parse().map_err(|_| invalid_release())?])
+            .endpoints(vec![manifest_endpoint(&release)?])
             .map_err(|_| invalid_release())?;
         let update = builder
             .build()
@@ -520,8 +542,30 @@ mod tests {
     fn live_github_release_is_reachable_and_valid() {
         let release = fetch_release().expect("GitHub Release API must be reachable");
         let version = validate_release(&release).expect("stable repository release");
+        let manifest = backend::network::builder()
+            .timeout(Duration::from_secs(20))
+            .build()
+            .unwrap()
+            .get(manifest_endpoint(&release).unwrap())
+            .send()
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .json::<tauri_plugin_updater::RemoteRelease>()
+            .expect("published manifest must parse with the actual updater plugin");
+        for (arch, platform) in [("x64", "windows-x86_64"), ("arm64", "windows-aarch64")] {
+            let name = format!("NekoBox_{version}_{arch}-setup.exe");
+            validate_update(
+                &manifest.version.to_string(),
+                manifest.download_url(platform).unwrap().as_str(),
+                manifest.signature(platform).unwrap(),
+                &version.to_string(),
+                asset(&release, &name).unwrap().unwrap(),
+            )
+            .expect("manifest version and download must match the published release");
+        }
         println!(
-            "Verified public GitHub release {} -> {}",
+            "Verified public GitHub release and both updater targets {} -> {}",
             release.tag_name, version
         );
     }
@@ -541,6 +585,7 @@ mod tests {
             draft: false,
             prerelease: false,
             assets: vec![Asset {
+                id: 100,
                 name: "latest.json".into(),
                 browser_download_url: asset_url("v0.1.2", "latest.json"),
             }],
@@ -566,10 +611,29 @@ mod tests {
         assert!(asset(&release, "latest.json").is_err());
         release.assets[0].browser_download_url = asset_url("v0.1.2", "latest.json");
         release.assets.push(Asset {
+            id: 101,
             name: "latest.json".into(),
             browser_download_url: asset_url("v0.1.2", "latest.json"),
         });
         assert!(asset(&release, "latest.json").is_err());
+    }
+    #[test]
+    fn manifest_requests_change_when_the_published_asset_is_replaced() {
+        let mut release = release();
+        let first = manifest_endpoint(&release).unwrap();
+        assert_eq!(
+            first.as_str(),
+            format!("{}?asset_id=100", asset_url("v0.1.2", "latest.json"))
+        );
+        release.assets[0].id = 102;
+        let next = manifest_endpoint(&release).unwrap();
+        assert_ne!(first, next);
+        assert_eq!(next.path(), first.path());
+        release.assets[0].id = 0;
+        assert!(manifest_endpoint(&release).is_err());
+        release.assets[0].id = 102;
+        release.assets[0].browser_download_url = "https://example.com/latest.json".into();
+        assert!(manifest_endpoint(&release).is_err());
     }
     #[test]
     fn updater_metadata_cannot_switch_architecture_version_or_repository() {

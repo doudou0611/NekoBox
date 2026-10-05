@@ -21,6 +21,8 @@ import PreviewCover from './preview/PreviewCover.vue';
 import { createOperation, updateOperation } from '../stores/operations';
 import {
   isPrepared,
+  isImported,
+  importReviewStats,
   needsScrape,
   prepareReview,
   selectReviewMatch,
@@ -103,18 +105,10 @@ function cancelManualSearch() {
   manual_loading.value = false;
 }
 
-const scraped_count = computed(
-  () => review_items.value.filter(isPrepared).length,
-);
-const pending_count = computed(
-  () => review_items.value.filter((item) => !isPrepared(item)).length,
-);
-const selected_count = computed(
-  () =>
-    review_items.value.filter(
-      (item) => item.selected && !item.preview?.existing_game_id,
-    ).length,
-);
+const review_stats = computed(() => importReviewStats(review_items.value));
+const scraped_count = computed(() => review_stats.value.scraped);
+const pending_count = computed(() => review_stats.value.pending);
+const selected_count = computed(() => review_stats.value.selected);
 const unresolved_count = computed(
   () =>
     review_items.value.filter(
@@ -380,8 +374,18 @@ async function chooseSingleDirectory() {
 function chooseSingleMatch(candidate: MetadataCandidate) {
   const item = single_item.value;
   if (!item || busy.value) return;
+  if (
+    item.match?.provider === candidate.provider &&
+    item.match?.remote_id === candidate.remote_id
+  )
+    return;
   discardPreparations([item]);
   selectReviewMatch(item, candidate);
+}
+async function scrapeSingleMatch(candidate: MetadataCandidate) {
+  if (busy.value || review_loading.value || manual_loading.value) return;
+  chooseSingleMatch(candidate);
+  await confirmSingleImport();
 }
 async function changeSingleSource() {
   cancelManualSearch();
@@ -391,7 +395,15 @@ async function changeSingleSource() {
 }
 async function confirmSingleImport() {
   const item = single_item.value;
-  if (!item || !item.match || busy.value || manual_loading.value) return;
+  if (
+    !item ||
+    !item.match ||
+    isImported(item) ||
+    busy.value ||
+    review_loading.value ||
+    manual_loading.value
+  )
+    return;
   if (unresolved_count.value) {
     error.value = '请先选择这个游戏的启动入口。';
     return;
@@ -967,8 +979,11 @@ onUnmounted(() => {
           </ul>
           <div class="review-stats" aria-label="识别统计">
             <div>
-              <strong>{{ review_items.length }}</strong
+              <strong>{{ review_stats.recognized }}</strong
               ><span>已识别</span>
+              <small v-if="review_stats.imported" class="review-imported-count"
+                >已导入（{{ review_stats.imported }}）</small
+              >
             </div>
             <div>
               <strong>{{ pending_count }}</strong
@@ -992,8 +1007,13 @@ onUnmounted(() => {
               class="review-card"
               :data-selected="item.selected"
               :data-scraped="isScraped(item)"
-              :data-failed="item.scrape_status === 'failed'"
-              :aria-busy="item.scrape_status === 'scraping'"
+              :data-imported="isImported(item)"
+              :data-failed="
+                !isImported(item) && item.scrape_status === 'failed'
+              "
+              :aria-busy="
+                !isImported(item) && item.scrape_status === 'scraping'
+              "
             >
               <div class="review-row">
                 <label class="review-select" title="是否导入">
@@ -1007,7 +1027,7 @@ onUnmounted(() => {
                   <span>搜索名称</span>
                   <input
                     v-model="item.search_name"
-                    :disabled="busy"
+                    :disabled="busy || isImported(item)"
                     @input="resetMatch(item)"
                   />
                 </label>
@@ -1016,7 +1036,7 @@ onUnmounted(() => {
                   <select
                     v-if="executableCandidates(item).length > 1"
                     v-model="item.selected_executable"
-                    :disabled="busy"
+                    :disabled="busy || isImported(item)"
                   >
                     <option value="">请选择</option>
                     <option
@@ -1036,15 +1056,20 @@ onUnmounted(() => {
                 </label>
                 <span
                   class="review-status"
-                  :data-status="item.scrape_status"
+                  :data-status="
+                    isImported(item) ? 'imported' : item.scrape_status
+                  "
                   :title="
-                    item.scrape_message || metadataLabel(item.scrape_status)
+                    isImported(item)
+                      ? item.preview?.duplicate_reason ||
+                        '路径已在游戏库中，将跳过刮削与重复导入。'
+                      : item.scrape_message || metadataLabel(item.scrape_status)
                   "
                   role="status"
                 >
                   <Transition name="review-success">
                     <svg
-                      v-if="isScraped(item)"
+                      v-if="isScraped(item) || isImported(item)"
                       class="review-success-mark"
                       viewBox="0 0 20 20"
                       aria-hidden="true"
@@ -1053,12 +1078,16 @@ onUnmounted(() => {
                       <path d="M5.5 10.2 8.4 13.1 14.5 7" pathLength="1" />
                     </svg>
                   </Transition>
-                  {{ metadataLabel(item.scrape_status) }}
+                  {{
+                    isImported(item)
+                      ? '已导入'
+                      : metadataLabel(item.scrape_status)
+                  }}
                 </span>
                 <button
                   type="button"
                   class="quiet-button"
-                  :disabled="busy || !item.selected"
+                  :disabled="busy || isImported(item) || !item.selected"
                   @click="openManual(item)"
                 >
                   手动匹配
@@ -1104,7 +1133,7 @@ onUnmounted(() => {
                   busy ||
                   review_loading ||
                   unresolved_count > 0 ||
-                  !review_items.length
+                  !selected_count
                 "
               >
                 {{
@@ -1145,7 +1174,9 @@ onUnmounted(() => {
             <PreviewIcon name="close" />
           </button>
         </header>
-        <p class="import-lead">选择一个刮削源，再选择封面对应的作品。</p>
+        <p class="import-lead">
+          单击选中作品，双击直接刮削并导入；也可以使用下方的确认按钮。
+        </p>
         <p v-if="roots[0]" class="single-folder">{{ roots[0] }}</p>
         <p v-if="review_loading" role="status">正在读取游戏文件夹…</p>
         <template
@@ -1201,6 +1232,7 @@ onUnmounted(() => {
               "
               :disabled="busy"
               @click="chooseSingleMatch(candidate)"
+              @dblclick="scrapeSingleMatch(candidate)"
             >
               <PreviewCover
                 :cover_url="candidate.cover_url ?? ''"
@@ -1609,6 +1641,11 @@ onUnmounted(() => {
   font-size: 28px;
   font-weight: 500;
 }
+.review-imported-count {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
 .review-stats span,
 .review-card-details,
 .review-card-heading p,
@@ -1637,7 +1674,8 @@ onUnmounted(() => {
     background-color var(--feedback-duration) var(--ease-standard),
     box-shadow var(--feedback-duration) var(--ease-standard);
 }
-.review-card[data-scraped='true'] {
+.review-card[data-scraped='true'],
+.review-card[data-imported='true'] {
   border-color: var(--success);
   background: color-mix(in srgb, var(--success) 7%, var(--surface-hover));
   box-shadow: inset 0 0 0 1px
@@ -1718,7 +1756,8 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .review-status[data-status='scraped'],
-.review-status[data-status='manual'] {
+.review-status[data-status='manual'],
+.review-status[data-status='imported'] {
   border-color: color-mix(in srgb, var(--success) 50%, var(--border));
   background: color-mix(in srgb, var(--success) 10%, transparent);
   color: var(--success);
