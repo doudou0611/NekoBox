@@ -84,6 +84,10 @@ fn api_uses_client_routes_json_and_bearer_without_leaking_credentials() {
         assert!(text
             .to_lowercase()
             .contains("authorization: bearer fixture"));
+        assert!(text.to_lowercase().contains(&format!(
+            "user-agent: nekobox/{}",
+            env!("CARGO_PKG_VERSION")
+        )));
         let body = "[]";
         write!(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{body}").unwrap();
     });
@@ -98,6 +102,50 @@ fn api_uses_client_routes_json_and_bearer_without_leaking_credentials() {
     assert!(v.is_array());
     task.join().unwrap();
     assert!(token_from(&json!({"access_token":"bad\ntoken"})).is_err());
+}
+
+#[test]
+fn gateway_rejection_is_distinguished_from_account_or_download_permissions() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    let server = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = server.local_addr().unwrap();
+    let task = std::thread::spawn(move || {
+        let (mut stream, _) = server.accept().unwrap();
+        let mut buf = [0; 8192];
+        assert!(stream.read(&mut buf).unwrap() > 0);
+        let body = "<html><h1>403 Forbidden</h1></html>";
+        write!(stream, "HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+    });
+    let error = send_at(
+        &format!("http://{addr}/v1/"),
+        reqwest::Method::POST,
+        "auth/login",
+        json!({"email":"","password":""}),
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(error.0, ErrorCode::PermissionDenied);
+    assert!(error.1.contains("网络网关"));
+    assert!(!error.1.contains("购买权限"));
+    assert!(!error.1.contains("下载额度"));
+    task.join().unwrap();
+}
+
+#[test]
+#[ignore = "requires official network access; only submits empty login fields, never account credentials"]
+fn live_empty_login_reaches_api_validation_with_identified_client() {
+    let response = http()
+        .unwrap()
+        .post(format!("{BASE}auth/login"))
+        .header("Accept", "application/json")
+        .json(&json!({"email":"","password":""}))
+        .send()
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
+    let value: Value = response.json().unwrap();
+    assert!(value["errors"]["email"].is_array());
+    assert!(value["errors"]["password"].is_array());
 }
 
 #[test]

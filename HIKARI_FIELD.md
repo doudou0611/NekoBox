@@ -11,6 +11,7 @@
 - 基于官方 1.2.0 客户端协议：`auth/login`、`auth/refresh`、`auth/logout`、`user/info`、`apps`、`files/`、`builds/sign`、`builds/bytes`、`apps/installed`。
 - 仅导入 `have = 1` 的正式版游戏，排除试玩及音声。购买但尚未开放下载的作品仍保留在库中。开始下载时重新核实当前账户的购买权限。
 - 密码不保存；访问令牌通过既有系统凭据库保存，按数据目录隔离。后台定期刷新并对过期授权重试。应用数据库仅保存账户显示信息、购买记录、目录、稳定的 UUID 和任务状态。
+- 所有 HIKARI FIELD API 与分块下载请求使用真实的 `NekoBox/<版本>` User-Agent。官方网络网关拒绝没有此请求头的请求，表现为 HTML 403；此类错误单独提示网络/代理问题，避免误报购买权限或下载额度。
 - 官方目录规则、游戏相对目录、分块命名、Range 下载、ZIP 解压、文件合并及 `install.json` 均沿用客户端方式。默认选择 `main` depot；没有 `main` 时使用首个可用版本。
 - 块与完整文件均验证 SHA-1；拒绝目录穿越、符号链接、越界 Range 和异常 ZIP。下载沿用应用代理设置，保留官方设备与流量限制，并发送下载流量及安装结果。
 - 购买记录保存在 `settings` 的 `hikarifield.game.<game_id>` 下，以官方 app ID 保证幂等。唯一同名本地游戏可关联已有记录，个人标题、评分、状态和启动配置保留；安装使用现有 `local` 来源，不更改数据库版本。
@@ -24,3 +25,5 @@
 启动 `pnpm dev` 后运行 `node scripts/verify-hikarifield.mjs`，通过隔离 IPC 数据验证登录导入、首次选目录、任务进度、安装后启动入口、设置、三账户键盘导航、390px 窗口及减少动效。截图输出到 `.tools/hikarifield-browser/`。`node scripts/verify-accounts.mjs` 验证原有账户流程。浏览器脚本需要本机 `.tools/browser-check` Playwright 和 Microsoft Edge，可通过 `BROWSER_EXECUTABLE` 指定浏览器。
 
 真实 HIKARI FIELD 账户登录、购买资源的实际下载，以及 Windows 原生启动/游玩跟踪仍需实机验收。隔离测试不证明这些外部环节已完成。请在桌面软件内输入凭据，不要把密码写入聊天或测试文件。
+
+2026-10-06 修复登录网关 403：匿名空登录请求不带 User-Agent 返回 HTML 403；带 `NekoBox/0.1.5` 返回预期的 JSON 422 参数校验。额外使用生产 Rust HTTP 客户端运行 `live_empty_login_reaches_api_validation_with_identified_client` 实网测试，验证请求到达官方登录参数校验；不使用真实账户凭据。

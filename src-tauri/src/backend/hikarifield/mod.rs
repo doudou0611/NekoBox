@@ -99,6 +99,9 @@ fn vault(b: &Backend) -> Result<NativeVault> {
 }
 fn http() -> Result<reqwest::blocking::Client> {
     network::builder()
+        // HF's network gateway rejects unidentified clients before API validation.
+        // Identify NekoBox truthfully; do not impersonate the official client.
+        .user_agent(concat!("NekoBox/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(40))
         .redirect(reqwest::redirect::Policy::none())
@@ -120,7 +123,7 @@ fn bad() -> ServiceError {
 fn response_error(status: u16) -> ServiceError {
     match status {
         401 => permission("HIKARI FIELD 登录已失效，请重新登录。"),
-        403 => permission("HIKARI FIELD 拒绝此操作，请检查购买权限、设备数量和下载额度。"),
+        403 => permission("HIKARI FIELD 拒绝了请求（HTTP 403），请检查账号状态或网络设置。"),
         422 => invalid("HIKARI FIELD 请求未通过验证，请检查账号信息或游戏版本。"),
         429 => ServiceError(
             ErrorCode::RateLimited,
@@ -145,6 +148,17 @@ fn send_at(
     }
     let response = r.send().map_err(|_| net())?;
     if !response.status().is_success() {
+        if response.status() == reqwest::StatusCode::FORBIDDEN
+            && response
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok())
+                .is_some_and(|v| v.to_ascii_lowercase().starts_with("text/html"))
+        {
+            return Err(permission(
+                "HIKARI FIELD 请求被网络网关拒绝（HTTP 403），请检查网络或代理设置。",
+            ));
+        }
         return Err(response_error(response.status().as_u16()));
     }
     let mut bytes = Vec::new();
@@ -238,6 +252,8 @@ pub fn login(b: &Backend, q: LoginRequest) -> Result<Account> {
     .map_err(|e| {
         if e.1.contains("登录已失效") {
             permission("HIKARI FIELD 邮箱或密码错误。")
+        } else if e.0 == ErrorCode::InvalidRequest {
+            invalid("HIKARI FIELD 登录信息未通过验证，请检查邮箱和密码。")
         } else {
             e
         }
