@@ -13,6 +13,7 @@ vi.mock('./library', () => ({
   errorText: (e: unknown) => (e instanceof Error ? e.message : String(e)),
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.open }));
+vi.mock('./ownedMetadata', () => ({ queueOwnedMetadata: vi.fn() }));
 import {
   hikariField,
   loginHikariField,
@@ -22,6 +23,7 @@ import {
   stopHikariPolling,
 } from './hikariField';
 import { operations, removeOperation } from './operations';
+import { queueOwnedMetadata } from './ownedMetadata';
 const account = {
   status: 'authenticated' as const,
   profile: { id: 7, name: '测试玩家' },
@@ -75,6 +77,7 @@ describe('HIKARI FIELD account, first download and native task lifecycle', () =>
     expect(hikariField.account.profile?.id).toBe(7);
     expect(hikariField.sync_message).toContain('2 部');
     expect(mocks.refresh).toHaveBeenCalledWith({ reloadDetails: true });
+    expect(queueOwnedMetadata).toHaveBeenCalledOnce();
     expect(JSON.stringify(hikariField)).not.toContain('fixture-password');
   });
   it('asks for a directory before the first download and reuses it afterward', async () => {

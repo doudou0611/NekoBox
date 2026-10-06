@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import type { PreviewGame } from '../../preview/data';
 import { toggleFavorite } from '../../stores/library';
 import { motion_mode } from '../../composables/useMotionPolicy';
@@ -8,6 +8,7 @@ import PreviewCover from './PreviewCover.vue';
 import PreviewIcon from './PreviewIcon.vue';
 import PreviewTooltip from './PreviewTooltip.vue';
 import { armGameDrag } from '../../services/gameDrag';
+import { gameDownload, startHikariDownload } from '../../stores/hikariField';
 const props = withDefaults(
   defineProps<{
     game: PreviewGame;
@@ -29,6 +30,7 @@ const props = withDefaults(
 );
 const emit = defineEmits<{ select: [gameId: string] }>();
 const tilt = ref({ x: 0, y: 0 });
+const download = computed(() => gameDownload(props.game.game_id));
 function updateTilt(event: PointerEvent) {
   if (motion_mode.value !== 'full' || event.pointerType !== 'mouse') return;
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -101,6 +103,22 @@ function updateTilt(event: PointerEvent) {
         }}</span></span
       >
     </button>
+    <button
+      v-if="game.hikari_field && !game.launchable && !props.selectable"
+      class="card-download icon-button"
+      :aria-label="download ? `${game.title}正在下载` : `下载${game.title}`"
+      :title="
+        download
+          ? '正在下载，可在左下角查看进度'
+          : game.hikari_field.released
+            ? '已拥有，尚未安装 · 下载游戏'
+            : '已拥有，尚未开放下载'
+      "
+      :disabled="!!download || !game.hikari_field.released"
+      @click.stop="startHikariDownload(game.game_id)"
+    >
+      <PreviewIcon :name="download ? 'clock' : 'download'" :size="18" />
+    </button>
     <PreviewTooltip
       v-if="!props.selectable"
       :text="game.favorite ? '取消收藏' : '收藏这段故事'"
@@ -122,5 +140,22 @@ function updateTilt(event: PointerEvent) {
 .cover-card.is-selected {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+.card-download {
+  position: absolute;
+  left: var(--space-12);
+  top: var(--space-12);
+  border-radius: var(--radius-pill);
+  color: var(--hero-ink);
+  background: var(--hero-shade-soft);
+  border-color: var(--edge-highlight);
+  backdrop-filter: blur(6px);
+}
+.card-download:hover {
+  background: var(--hero-shade);
+}
+.card-download:disabled {
+  opacity: 0.85;
+  cursor: default;
 }
 </style>

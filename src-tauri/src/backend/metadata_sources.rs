@@ -388,7 +388,9 @@ fn confirm_erased(
             if !same_identity {
                 let mut old_providers = previous
                     .iter()
-                    .filter(|f| !f.manually_edited && f.provider != provider)
+                    .filter(|f| {
+                        !f.manually_edited && f.provider != provider && f.provider != "hikarifield"
+                    })
                     .map(|f| f.provider.clone())
                     .collect::<Vec<_>>();
                 old_providers.sort();

@@ -126,14 +126,16 @@ function statusLabel(status: OperationItem['status']) {
                   type="button"
                   @click="item.cancel()"
                 >
-                  取消下载</button
+                  {{
+                    item.kind === 'download' ? '取消下载' : '停止任务'
+                  }}</button
                 ><button
                   v-if="item.retry"
                   class="quiet-button"
                   type="button"
                   @click="item.retry()"
                 >
-                  继续下载
+                  {{ item.kind === 'download' ? '继续下载' : '重试未完成项' }}
                 </button>
               </div>
               <button

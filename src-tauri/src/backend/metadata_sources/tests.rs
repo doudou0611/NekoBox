@@ -520,3 +520,36 @@ fn successful_match_commits_new_cache_but_failed_match_discards_it() {
         .unwrap()
         .is_none());
 }
+
+#[test]
+fn scraper_confirmation_cannot_detach_owned_store_metadata_on_title_variations() {
+    let f = Fixture::new();
+    let app: crate::backend::hikarifield::App = serde_json::from_value(
+        serde_json::json!({"id":7,"tag":"fixture","name":"game","have":1,"released":1}),
+    )
+    .unwrap();
+    f.b.database()
+        .unwrap()
+        .import_hf_app(10, &app, None)
+        .unwrap();
+    let q = f.request();
+    confirm_with(
+        &f.b,
+        &q,
+        |b, q| apply_fields(b, q, true),
+        |_, _| panic!("single-source confirmation"),
+        false,
+    )
+    .unwrap();
+    let detail = f.b.database().unwrap().get_game(&f.game).unwrap();
+    assert_eq!(detail.summary.title, "game");
+    assert_eq!(
+        detail.description.as_deref(),
+        Some("这是来源维护的中文简介，人物名字也保留中文。")
+    );
+    assert!(detail
+        .metadata
+        .iter()
+        .any(|m| m.provider == "hikarifield" && m.field == "title"));
+    assert!(detail.summary.hikari_field.is_some());
+}

@@ -27,13 +27,27 @@ pub(super) const DISPLAY_TITLE_SQL: &str = r#"CASE WHEN EXISTS(
     )) o ON o.value=m.provider
     WHERE m.game_id=g.id AND (m.field_name IN ('title','title_zh','title_en','title_ja','title_alt') OR (m.field_name='title_zh_translation' AND coalesce((SELECT json_extract(value_json,'$.enabled') FROM settings WHERE key='metadata.translation'),0)=1 AND EXISTS(SELECT 1 FROM settings ts,json_each(ts.value_json,'$.fields') tf WHERE ts.key='metadata.translation' AND tf.value='title')))
     AND json_type(m.value_json)='text' AND trim(json_extract(m.value_json,'$'))!=''
-    AND (m.is_user_edited=1 OR m.provider='manual' OR o.value IS NOT NULL)
-    ORDER BY m.is_user_edited DESC, CASE WHEN m.provider='manual' THEN -1 ELSE o.key END,
+    AND (m.is_user_edited=1 OR m.provider IN ('manual','hikarifield') OR o.value IS NOT NULL)
+    ORDER BY m.is_user_edited DESC, CASE WHEN m.provider='manual' THEN -2 WHEN m.provider='hikarifield' THEN -1 ELSE o.key END,
         CASE WHEN m.field_name='title_zh_translation' THEN -1 WHEN m.field_name='title' THEN 0 ELSE 1 END, m.field_name
     LIMIT 1
 ),g.title) END"#;
 
 pub(super) fn source_order(connection: &rusqlite::Connection, game: &str) -> Result<Vec<String>> {
+    let mut order = configured_source_order(connection, game)?;
+    // Store metadata is the owned game's baseline, independent of scraper settings.
+    // It is never a network scraper and must not be added to metadata.sources.
+    if connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM settings WHERE key=?)",
+        [format!("hikarifield.game.{game}")],
+        |r| r.get::<_, bool>(0),
+    )? {
+        order.retain(|p| p != "hikarifield");
+        order.insert(0, "hikarifield".into());
+    }
+    Ok(order)
+}
+fn configured_source_order(connection: &rusqlite::Connection, game: &str) -> Result<Vec<String>> {
     use rusqlite::OptionalExtension;
     let saved: Option<String> = connection
         .query_row(
@@ -396,6 +410,7 @@ impl Database {
             "vndb" => format!("https://vndb.org/{remote_id}"),
             "bangumi" => format!("https://bgm.tv/subject/{remote_id}"),
             "hikarinagi" => format!("https://www.hikarinagi.org/galgames/{remote_id}"),
+            "hikarifield" => "https://store.hikarifield.co.jp/".into(),
             _ => format!("https://www.hikarinagi.org/galgames/{remote_id}"),
         };
         for (field, value) in fields.iter().filter(|(_, value)| !value.trim().is_empty()) {

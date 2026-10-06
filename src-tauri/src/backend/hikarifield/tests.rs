@@ -23,7 +23,12 @@ fn import_owned_games_is_idempotent_and_preserves_personal_data() {
         .unwrap();
     assert_eq!(games.total, 1);
     let game = &games.items[0];
-    assert!(db.get_game(&game.id).unwrap().metadata.is_empty());
+    assert!(db
+        .get_game(&game.id)
+        .unwrap()
+        .metadata
+        .iter()
+        .any(|m| m.provider == "hikarifield" && m.field == "title"));
     db.update_game(&crate::backend::types::UpdateGameRequest {
         game_id: game.id.clone(),
         title: "我的自定义标题".into(),
@@ -45,7 +50,10 @@ fn import_owned_games_is_idempotent_and_preserves_personal_data() {
     assert!(game.installations.is_empty());
     assert_eq!(game.hikari_field.as_ref().unwrap().app_id, 7);
     assert_eq!(db.hf_ownership(&game.id).unwrap().owners, vec![10, 20]);
-    assert!(updated.metadata.iter().all(|m| m.provider == "manual"));
+    assert!(updated
+        .metadata
+        .iter()
+        .all(|m| matches!(m.provider.as_str(), "manual" | "hikarifield")));
 }
 #[test]
 fn owned_games_survive_database_reopen_without_an_account_token() {
@@ -187,4 +195,135 @@ fn folder_selection_appends_root_once_and_persists_stable_uuid() {
     assert_eq!(settings(&b).unwrap().root, first.root);
     drop(b);
     std::fs::remove_dir_all(fixture).unwrap();
+}
+
+#[test]
+fn official_metadata_is_the_baseline_and_ordered_scrapers_only_fill_missing_fields() {
+    let mut db = crate::database::Database::in_memory().unwrap();
+    let app: App = serde_json::from_value(
+        json!({"id":7,"tag":"fixture","name":"官方名称","have":1,"released":1}),
+    )
+    .unwrap();
+    db.import_hf_app(10, &app, None).unwrap();
+    let query = crate::domain::models::GameQuery {
+        page: 1,
+        page_size: 100,
+        search: String::new(),
+        statuses: vec![],
+        sources: vec![],
+        tag_ids: vec![],
+        favorite: None,
+        collection_id: None,
+        sort: crate::domain::models::GameSort::Title,
+        direction: crate::domain::models::SortDirection::Asc,
+        filters: Default::default(),
+    };
+    let game = db.list_games(&query).unwrap().items[0].id.clone();
+    db.set_hf_cover(7, "covers/official.jpg").unwrap();
+    assert_eq!(
+        db.get_game(&game).unwrap().summary.metadata_status,
+        crate::domain::protocol::MetadataStatus::LocalOnly
+    );
+    let config = crate::backend::metadata_sources::Config {
+        sources: vec![
+            crate::backend::metadata_sources::Source {
+                provider: "bangumi".into(),
+                enabled: true,
+            },
+            crate::backend::metadata_sources::Source {
+                provider: "hikarinagi".into(),
+                enabled: true,
+            },
+            crate::backend::metadata_sources::Source {
+                provider: "vndb".into(),
+                enabled: false,
+            },
+        ],
+    };
+    db.put_setting(crate::backend::metadata_sources::SETTING, &config)
+        .unwrap();
+    db.set_metadata_priority(&game, &config.enabled()).unwrap();
+    db.apply_remote_fields(
+        &game,
+        "hikarinagi",
+        "789",
+        &[
+            ("title".into(), "其他来源名称".into()),
+            ("cover_path".into(), "covers/other.jpg".into()),
+            ("description".into(), "第二来源的简介。".into()),
+            ("developer".into(), "第二来源开发商".into()),
+            ("release_date".into(), "2020-01-01".into()),
+        ],
+        &[],
+        &now(),
+        true,
+    )
+    .unwrap();
+    db.apply_remote_fields(
+        &game,
+        "bangumi",
+        "123",
+        &[
+            ("title".into(), "第一来源名称".into()),
+            ("cover_path".into(), "covers/first.jpg".into()),
+            ("description".into(), "第一来源的简介。".into()),
+            ("developer".into(), "第一来源开发商".into()),
+        ],
+        &[],
+        &now(),
+        true,
+    )
+    .unwrap();
+    let detail = db.get_game(&game).unwrap();
+    assert_eq!(detail.summary.title, "官方名称");
+    assert_eq!(
+        detail.summary.cover_url.as_deref(),
+        Some("covers/official.jpg")
+    );
+    assert_eq!(detail.summary.developer.as_deref(), Some("第一来源开发商"));
+    assert_eq!(detail.summary.release_date.as_deref(), Some("2020-01-01"));
+    assert_eq!(detail.description.as_deref(), Some("第一来源的简介。"));
+    assert!(detail.summary.installations.is_empty());
+    db.edit_metadata(&crate::backend::detail_metadata::EditRequest {
+        game_id: game.clone(),
+        changes: [("description".into(), json!("我自己的简介"))]
+            .into_iter()
+            .collect(),
+        expected: [("description".into(), json!("第一来源的简介。"))]
+            .into_iter()
+            .collect(),
+    })
+    .unwrap();
+    db.apply_remote_fields(
+        &game,
+        "bangumi",
+        "123",
+        &[("description".into(), "刷新后的简介".into())],
+        &[],
+        &now(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(
+        db.get_game(&game).unwrap().description.as_deref(),
+        Some("我自己的简介")
+    );
+    db.freeze_metadata_order(&game).unwrap();
+    db.freeze_metadata_order(&game).unwrap();
+    let order: Vec<String> = db
+        .setting(&format!("metadata.priority.{game}"))
+        .unwrap()
+        .unwrap();
+    assert_eq!(order.iter().filter(|p| *p == "hikarifield").count(), 1);
+    db.put_setting(&format!("metadata.locked.{game}"), &true)
+        .unwrap();
+    let before = serde_json::to_value(db.get_game(&game).unwrap().metadata).unwrap();
+    let mut changed = app.clone();
+    changed.name = "修改后的官方名称".into();
+    db.import_hf_app(10, &changed, None).unwrap();
+    db.set_hf_cover(7, "covers/replacement.jpg").unwrap();
+    assert_eq!(
+        serde_json::to_value(db.get_game(&game).unwrap().metadata).unwrap(),
+        before
+    );
 }

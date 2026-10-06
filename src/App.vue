@@ -37,6 +37,8 @@ import { accountDialog, openAccountDialog } from './stores/accountDialog';
 import { refreshHikariAccount } from './stores/hikarinagiAccount';
 import SidebarDock from './components/SidebarDock.vue';
 import HikariFieldFolderDialog from './components/HikariFieldFolderDialog.vue';
+import OwnedMetadataDialog from './components/OwnedMetadataDialog.vue';
+import { ownedMetadata } from './stores/ownedMetadata';
 import {
   hikariField,
   loadHikariField,
@@ -323,6 +325,7 @@ onUnmounted(() => {
     <div class="exhibition-main">
       <main id="main-content" class="route-stage">
         <LocalImport />
+        <OwnedMetadataDialog v-if="ownedMetadata.open" />
         <div
           v-if="desktop && updates.notice && route.name !== 'settings'"
           class="app-update-notice"

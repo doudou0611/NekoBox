@@ -28,11 +28,16 @@ export const activeOperationProgress = computed(() => {
   const active = operations.filter(
     (item) => ['queued', 'running'].includes(item.status) && item.total,
   );
-  const total = active.reduce((sum, item) => sum + item.total!, 0);
-  return total
+  // Bytes and game counts are different units: average each task's fraction.
+  return active.length
     ? Math.min(
         100,
-        (active.reduce((sum, item) => sum + (item.progress ?? 0), 0) / total) *
+        (active.reduce(
+          (sum, item) =>
+            sum + Math.min(1, Math.max(0, (item.progress ?? 0) / item.total!)),
+          0,
+        ) /
+          active.length) *
           100,
       )
     : null;

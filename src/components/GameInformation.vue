@@ -86,9 +86,11 @@ function provenance(field: string) {
       ? '手动设定'
       : source.provider === 'hikarinagi'
         ? 'Hikarinagi'
-        : source.provider === 'bangumi'
-          ? 'Bangumi'
-          : source.provider.toUpperCase()
+        : source.provider === 'hikarifield'
+          ? 'HIKARI FIELD'
+          : source.provider === 'bangumi'
+            ? 'Bangumi'
+            : source.provider.toUpperCase()
     : '待补充';
 }
 async function save() {

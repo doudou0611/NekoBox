@@ -66,7 +66,18 @@ impl Database {
         ownership.app = app.clone();
         let tx = self.connection.transaction()?;
         tx.execute("INSERT INTO games(id,title,cover_path,status) VALUES(?1,?2,?3,'not_started') ON CONFLICT(id) DO NOTHING",params![game_id,app.name,cover])?;
+        if is_new {
+            tx.execute("INSERT INTO settings(id,key,value_json) VALUES(?1,?2,'true') ON CONFLICT(key) DO NOTHING",params![backend::id(),format!("metadata.generated_title.{game_id}")])?;
+        }
         tx.execute("INSERT INTO settings(id,key,value_json) VALUES(?1,?2,?3) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json",params![backend::id(),format!("hikarifield.game.{game_id}"),serde_json::to_string(&ownership).map_err(|_|backend::invalid("无法保存已购游戏。"))?])?;
+        let locked = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM settings WHERE key=? AND value_json='true')",
+            [format!("metadata.locked.{game_id}")],
+            |r| r.get::<_, bool>(0),
+        )?;
+        if !locked {
+            tx.execute("INSERT INTO metadata_records(id,game_id,provider,remote_id,field_name,value_json,source_url,fetched_at) VALUES(?1,?2,'hikarifield',?3,'title',?4,'https://store.hikarifield.co.jp/',?5) ON CONFLICT(game_id,provider,field_name) DO UPDATE SET value_json=excluded.value_json,remote_id=excluded.remote_id,fetched_at=excluded.fetched_at WHERE metadata_records.is_user_edited=0", params![backend::id(),game_id,app.id.to_string(),serde_json::to_string(&app.name).map_err(|_|backend::invalid("游戏名称无效。"))?,backend::now()])?;
+        }
         tx.commit()?;
         Ok(is_new)
     }
@@ -77,16 +88,27 @@ impl Database {
         Ok(self
             .connection
             .query_row(
-                "SELECT cover_path IS NULL OR trim(cover_path)='' FROM games WHERE id=?",
+                "SELECT NOT EXISTS(SELECT 1 FROM metadata_records WHERE game_id=games.id AND provider='hikarifield' AND field_name='cover_path') AND NOT EXISTS(SELECT 1 FROM settings WHERE key='metadata.locked.'||games.id AND value_json='true') FROM games WHERE id=?",
                 [game],
                 |r| r.get(0),
             )
             .optional()?
             .unwrap_or(false))
     }
-    pub fn set_hf_cover(&self, app_id: u64, cover: &str) -> Result<()> {
+    pub fn set_hf_cover(&mut self, app_id: u64, cover: &str) -> Result<()> {
         if let Some(game) = self.hf_game_id(app_id)? {
-            self.connection.execute("UPDATE games SET cover_path=? WHERE id=? AND (cover_path IS NULL OR trim(cover_path)='')",params![cover,game])?;
+            if self.metadata_locked(&game)? {
+                return Ok(());
+            }
+            self.apply_remote_fields(
+                &game,
+                "hikarifield",
+                &app_id.to_string(),
+                &[("cover_path".into(), cover.into())],
+                &[],
+                &backend::now(),
+                false,
+            )?;
         }
         Ok(())
     }

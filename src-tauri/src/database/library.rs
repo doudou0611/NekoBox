@@ -444,7 +444,7 @@ impl Database {
             MetadataStatus::PendingConfirmation
         } else if metadata
             .iter()
-            .any(|m| m.provider != "local" && m.provider != "manual")
+            .any(|m| !matches!(m.provider.as_str(), "local" | "manual" | "hikarifield"))
         {
             MetadataStatus::Synced
         } else {

@@ -3,6 +3,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { api, desktop, errorText, refreshLibrary, notify } from './library';
 import { openAccountDialog } from './accountDialog';
 import { operations, type OperationItem } from './operations';
+import { queueOwnedMetadata } from './ownedMetadata';
 import type {
   HikariFieldAccount,
   HikariFieldDownload,
@@ -66,6 +67,7 @@ export async function syncHikariField() {
     const report = await api('sync_hikarifield', {});
     hikariField.sync_message = `已同步 ${report.owned} 部已拥有的游戏，新增 ${report.imported} 部。`;
     await refreshLibrary({ reloadDetails: true });
+    queueOwnedMetadata();
   } catch (e) {
     hikariField.sync_message = '';
     hikariField.error = errorText(e);
