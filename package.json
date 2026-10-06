@@ -40,6 +40,7 @@
     "env:check": "node scripts/doctor.mjs",
     "test:database-transfer": "node scripts/verify-database-transfer.mjs",
     "test:accounts": "node scripts/verify-accounts.mjs",
+    "test:account-cards": "node scripts/verify-account-cards.mjs",
     "release:manifest": "node scripts/release-update.mjs",
     "release:verify": "node scripts/release-update.mjs --verify"
   },

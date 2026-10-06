@@ -8,6 +8,8 @@ import {
   logoutBangumi,
   refreshBangumi,
 } from '../stores/bangumi';
+import AccountCard from './account/AccountCard.vue';
+import PreviewIcon from './preview/PreviewIcon.vue';
 const props = defineProps<{ embedded?: boolean; locked?: boolean }>();
 
 const emit = defineEmits<{ close: [] }>();
@@ -41,12 +43,12 @@ function openLogin() {
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown);
-  token_input.value?.focus();
+  if (!props.embedded) token_input.value?.focus();
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
   token.value = '';
-  previous_focus?.focus();
+  if (!props.embedded) previous_focus?.focus();
 });
 </script>
 
@@ -57,105 +59,125 @@ onUnmounted(() => {
   >
     <section
       class="bangumi-login-dialog"
-      :role="props.embedded ? 'region' : 'dialog'"
+      :role="props.embedded ? undefined : 'dialog'"
       :aria-modal="props.embedded ? undefined : true"
       aria-labelledby="bangumi-login-title"
     >
       <button
         v-if="!props.embedded"
-        class="bangumi-login-close"
+        class="bangumi-login-close icon-button"
         type="button"
         aria-label="关闭 Bangumi 登录"
         @click="emit('close')"
       >
-        ×
+        <PreviewIcon name="close" />
       </button>
-      <p v-if="!props.embedded" class="eyebrow">BANGUMI ACCOUNT</p>
-      <h2 id="bangumi-login-title">
-        {{ bangumi.account.profile ? 'Bangumi 账号' : '登录 Bangumi' }}
-      </h2>
-      <template v-if="bangumi.account.profile">
-        <div class="account-profile">
-          <img
-            v-if="bangumi.account.profile.avatar_url && !bangumi.avatar_failed"
-            :src="bangumi.account.profile.avatar_url"
-            alt="Bangumi 头像"
-            @error="bangumi.avatar_failed = true"
-          />
-          <div>
-            <strong>{{
-              bangumi.account.profile.nickname ||
-              bangumi.account.profile.username
-            }}</strong
-            ><small
-              >@{{ bangumi.account.profile.username }} · ID
-              {{ bangumi.account.profile.id }}</small
-            >
-          </div>
-        </div>
-        <p>{{ bangumi.account.message }}</p>
-        <div class="account-actions">
-          <button
-            class="secondary-button"
-            :disabled="bangumi.busy || props.locked"
-            @click="refreshBangumi"
-          >
-            刷新账号
-          </button>
-          <button
-            class="quiet-button"
-            :disabled="bangumi.busy || props.locked"
-            @click="logoutBangumi"
-          >
-            退出登录
-          </button>
-        </div>
-      </template>
-      <form
-        v-if="!bangumi.account.profile || bangumi.account.status === 'expired'"
-        @submit.prevent="signIn"
+      <AccountCard
+        :title="bangumi.account.profile ? 'Bangumi 账号' : '登录 Bangumi'"
+        title-id="bangumi-login-title"
+        eyebrow="YOUR STORY COLLECTION"
+        icon="heart"
+        :connected="bangumi.account.status === 'authenticated'"
+        :profile="
+          bangumi.account.profile
+            ? {
+                name:
+                  bangumi.account.profile.nickname ||
+                  bangumi.account.profile.username,
+                detail: `@${bangumi.account.profile.username} · ID ${bangumi.account.profile.id}`,
+                avatar: bangumi.avatar_failed
+                  ? null
+                  : bangumi.account.profile.avatar_url,
+              }
+            : undefined
+        "
+        @avatar-error="bangumi.avatar_failed = true"
       >
-        <p>
-          在 Bangumi 官方页面生成 Access Token，粘贴一次即可保存授权并同步头像。
-        </p>
-        <button class="secondary-button" type="button" @click="openLogin">
-          打开官方 Token 页面
-        </button>
-        <label for="bangumi-token">Access Token</label>
-        <input
-          id="bangumi-token"
-          ref="token_input"
-          v-model="token"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          maxlength="4096"
-          placeholder="粘贴官方生成的 Token"
-          :disabled="bangumi.busy || props.locked || !isTauri()"
-        />
-        <button
-          class="primary-button"
-          type="submit"
-          :disabled="
-            bangumi.busy || props.locked || !token.trim() || !isTauri()
+        <template v-if="bangumi.account.profile">
+          <p class="provider-copy">{{ bangumi.account.message }}</p>
+          <div class="provider-actions">
+            <button
+              class="primary-button"
+              :disabled="bangumi.busy || props.locked"
+              @click="refreshBangumi"
+            >
+              <PreviewIcon name="spark" :size="16" />刷新账号
+            </button>
+            <button
+              class="quiet-button"
+              :disabled="bangumi.busy || props.locked"
+              @click="logoutBangumi"
+            >
+              退出登录
+            </button>
+          </div>
+        </template>
+        <form
+          v-if="
+            !bangumi.account.profile || bangumi.account.status === 'expired'
           "
+          class="provider-form"
+          :class="{ 'bangumi-reauthorize': bangumi.account.profile }"
+          @submit.prevent="signIn"
         >
-          {{ bangumi.busy ? '验证并保存…' : '登录并保存授权' }}
-        </button>
-        <small
-          >凭证保存在本机系统凭据库，后续刮削自动使用。仅在官网登录后，还需将
-          Token 粘贴到这里。</small
-        >
-        <small v-if="!isTauri()"
-          >浏览器预览不能保存桌面授权，请在 Windows 软件中登录。</small
-        >
-      </form>
-      <p v-if="bangumi.error" role="alert">{{ bangumi.error }}</p>
-      <p v-if="error" role="alert">{{ error }}</p>
+          <p class="provider-copy">
+            在 Bangumi 官方页面生成 Access
+            Token，粘贴一次即可保存授权并同步头像。
+          </p>
+          <div class="provider-actions">
+            <button class="secondary-button" type="button" @click="openLogin">
+              打开官方 Token 页面<PreviewIcon name="arrow" :size="16" />
+            </button>
+          </div>
+          <label for="bangumi-token"
+            >Access Token
+            <input
+              id="bangumi-token"
+              ref="token_input"
+              v-model="token"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="4096"
+              placeholder="粘贴官方生成的 Token"
+              :disabled="bangumi.busy || props.locked || !isTauri()"
+            />
+          </label>
+          <button
+            class="primary-button provider-submit"
+            type="submit"
+            :disabled="
+              bangumi.busy || props.locked || !token.trim() || !isTauri()
+            "
+          >
+            <PreviewIcon name="arrow" :size="17" />{{
+              bangumi.busy ? '验证并保存…' : '登录并保存授权'
+            }}
+          </button>
+          <small class="provider-security">
+            <PreviewIcon name="lock" :size="14" />
+            <span
+              >凭证保存在本机系统凭据库。在官网登录后，还需将 Token
+              粘贴到这里。</span
+            >
+          </small>
+          <p v-if="!isTauri()" class="provider-copy">
+            浏览器预览不能保存桌面授权，请在桌面软件中登录。
+          </p>
+        </form>
+        <Transition name="provider-feedback" mode="out-in">
+          <p
+            v-if="bangumi.error || error"
+            class="provider-feedback"
+            role="alert"
+          >
+            {{ bangumi.error || error }}
+          </p>
+        </Transition>
+      </AccountCard>
     </section>
   </div>
 </template>
-
 <style scoped>
 .embedded-bangumi .bangumi-login-dialog {
   width: 100%;
@@ -164,82 +186,33 @@ onUnmounted(() => {
   background: transparent;
   box-shadow: none;
 }
-.embedded-bangumi .bangumi-login-dialog h2 {
-  font-size: 22px;
-  margin: 0 0 20px;
-}
 .bangumi-login-backdrop {
   position: fixed;
-  z-index: 20;
+  z-index: var(--z-modal);
   inset: 0;
   display: grid;
   place-items: center;
-  padding: var(--space-24);
+  padding: 24px;
   background: rgb(32 27 45 / 36%);
   backdrop-filter: blur(8px);
 }
 .bangumi-login-dialog {
   position: relative;
-  width: min(420px, 100%);
-  padding: var(--space-32);
+  width: min(460px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 28px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 28px 80px rgb(35 25 48 / 24%);
-}
-.bangumi-login-dialog h2 {
-  margin: var(--space-8) 0 var(--space-12);
-}
-.bangumi-login-dialog p:not(.eyebrow) {
-  margin: 0 0 var(--space-20);
-  color: var(--muted);
-  line-height: 1.7;
-}
-.bangumi-login-dialog small {
-  display: block;
-  margin-top: var(--space-16);
-  color: var(--muted);
-  line-height: 1.6;
+  box-shadow: var(--shadow-modal);
 }
 .bangumi-login-close {
   position: absolute;
-  top: var(--space-12);
-  right: var(--space-16);
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 24px;
-  cursor: pointer;
+  top: 16px;
+  right: 16px;
 }
-.account-profile,
-.account-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.account-profile img {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-.account-profile small {
-  margin-top: 4px;
-}
-form label {
-  display: block;
-  margin-top: 20px;
-  color: var(--muted);
-}
-form input {
-  box-sizing: border-box;
-  width: 100%;
-  margin: 8px 0 16px;
-  padding: 12px;
-  background: var(--surface-hover);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+.bangumi-reauthorize {
+  margin-top: 24px;
 }
 </style>
