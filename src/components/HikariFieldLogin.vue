@@ -256,6 +256,7 @@ async function submit() {
 }
 .hf-error,
 .hf-success {
+  margin: var(--space-20) 0 0;
   padding: 12px 14px;
   border-radius: var(--radius-sm);
   font-size: 13px;
