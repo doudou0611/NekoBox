@@ -4,7 +4,8 @@ import './account.css';
 defineProps<{
   title: string;
   eyebrow: string;
-  icon: string;
+  logo: string;
+  logoAlt: string;
   titleId?: string;
   profile?: { name: string; detail: string; avatar?: string | null };
   connected?: boolean;
@@ -14,9 +15,16 @@ defineEmits<{ avatarError: [] }>();
 <template>
   <div class="provider-account">
     <header class="provider-intro">
-      <span class="provider-emblem"
-        ><PreviewIcon :name="icon" :size="26"
-      /></span>
+      <span class="provider-emblem">
+        <img
+          class="provider-logo"
+          :src="logo"
+          :alt="logoAlt"
+          width="36"
+          height="36"
+          :draggable="false"
+        />
+      </span>
       <div>
         <p>{{ eyebrow }}</p>
         <h3 :id="titleId">{{ title }}</h3>

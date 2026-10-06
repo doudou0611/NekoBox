@@ -98,6 +98,7 @@ try {
     </script></body></html>`,
     }),
   );
+  await page.route('https://**/*', (route) => route.abort());
   await page.goto(`${base}/__account_cards_test`);
   const dialog = page.locator('dialog.account-dialog[open]');
   await dialog.waitFor();
@@ -137,6 +138,23 @@ try {
         for (const [provider, label] of Object.entries(providers)) {
           await page.getByRole('tab', { name: label, exact: true }).click();
           await settle(provider);
+          await page.waitForFunction(() => {
+            const logo = document.querySelector('.provider-logo');
+            return logo?.complete && logo.naturalWidth > 0;
+          });
+          const logo = await page
+            .locator('.provider-logo')
+            .evaluate((node) => ({
+              src: new URL(node.src).pathname,
+              origin: new URL(node.src).origin,
+              alt: node.alt,
+            }));
+          assert.equal(
+            logo.src,
+            `/brand/providers/${provider}.${provider === 'hikarifield' ? 'svg' : 'png'}`,
+          );
+          assert.equal(logo.origin, new URL(base).origin);
+          assert.equal(logo.alt, `${label} 官方图标`);
           const layout = await dialog.evaluate((node) => {
             const header = node.querySelector('.provider-intro');
             const emblem = node.querySelector('.provider-emblem');
@@ -368,6 +386,7 @@ try {
         reducedMotion: true,
         heightInterpolates: true,
         downloadLogoutLock: true,
+        officialLogosLoadOffline: true,
       },
       null,
       2,

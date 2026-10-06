@@ -27,7 +27,8 @@ async function submit() {
     class="hf-account"
     title="HIKARI FIELD"
     eyebrow="YOUR OWNED STORIES"
-    icon="spark"
+    logo="/brand/providers/hikarifield.svg"
+    logo-alt="HIKARI FIELD 官方图标"
     :connected="hikariField.account.status === 'authenticated'"
     :profile="
       hikariField.account.status === 'authenticated'

@@ -76,7 +76,8 @@ onUnmounted(() => {
         :title="bangumi.account.profile ? 'Bangumi 账号' : '登录 Bangumi'"
         title-id="bangumi-login-title"
         eyebrow="YOUR STORY COLLECTION"
-        icon="heart"
+        logo="/brand/providers/bangumi.png"
+        logo-alt="Bangumi 官方图标"
         :connected="bangumi.account.status === 'authenticated'"
         :profile="
           bangumi.account.profile

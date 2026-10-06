@@ -244,7 +244,8 @@ onUnmounted(() => {
                 : '登录 Hikarinagi'
             "
             eyebrow="YOUR PERSONAL LIBRARY"
-            icon="spark"
+            logo="/brand/providers/hikarinagi.png"
+            logo-alt="Hikarinagi 官方图标"
             :connected="hikariAccount.account.status === 'authenticated'"
             :profile="
               hikariAccount.account.profile
