@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MetadataCandidate } from '../types/domain';
-import { automaticCandidate } from './metadataScraper';
+import { automaticCandidate, automaticOwnedCandidate } from './metadataScraper';
 function candidate(
   overrides: Partial<MetadataCandidate> = {},
 ): MetadataCandidate {
@@ -50,5 +50,39 @@ describe('automatic identity matching', () => {
         }),
       ])?.remote_id,
     ).toBe('123');
+  });
+});
+
+describe('official owned-game title matching', () => {
+  it('automatically selects the one exact title even when provider scores tie', () => {
+    expect(
+      automaticOwnedCandidate('作品', [
+        candidate({ confidence: 0.55 }),
+        candidate({ title: '作品 另一版本', remote_id: '124', confidence: 1 }),
+      ])?.remote_id,
+    ).toBe('123');
+  });
+  it('accepts exact aliases, width and punctuation variations', () => {
+    expect(
+      automaticOwnedCandidate('ATRI：My Dear Moments', [
+        candidate({
+          title: '亚托莉',
+          subtitle: 'ＡＴＲＩ - My Dear Moments',
+          confidence: 0.9,
+        }),
+      ])?.remote_id,
+    ).toBe('123');
+  });
+  it('deduplicates repeated identities and keeps genuinely different same-title records unmatched', () => {
+    expect(
+      automaticOwnedCandidate('作品', [candidate(), candidate()])?.remote_id,
+    ).toBe('123');
+    expect(
+      automaticOwnedCandidate('作品', [
+        candidate(),
+        candidate({ remote_id: '124' }),
+      ]),
+    ).toBeNull();
+    expect(automaticOwnedCandidate('...', [candidate()])).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from '../.tools/browser-check/node_modules/playwright/index.mjs';
 const base = process.env.PREVIEW_URL || 'http://127.0.0.1:1420';
 assert(['127.0.0.1', 'localhost'].includes(new URL(base).hostname));
-const out = '.tools/owned-metadata-evidence';
+const out = '.tools/owned-metadata-auto-evidence';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
@@ -17,6 +17,15 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
+  const settle = () =>
+    page.locator('.owned-metadata-dialog').evaluate(async (el) => {
+      await Promise.all(
+        el
+          .getAnimations({ subtree: true })
+          .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.setDefaultTimeout(12000);
@@ -27,7 +36,11 @@ try {
   const ownedStore = source.match(
     /from "([^"]*\/stores\/ownedMetadata\.ts[^"]*)"/,
   )?.[1];
-  const libraryStore = source.match(
+  assert(vue && ownedStore);
+  const storeSource = await (
+    await page.request.get(`${base}${ownedStore}`)
+  ).text();
+  const libraryStore = storeSource.match(
     /from "([^"]*\/stores\/library\.ts[^"]*)"/,
   )?.[1];
   assert(vue && ownedStore && libraryStore);
@@ -261,11 +274,12 @@ try {
   assert.equal(await page.locator('.owned-metadata-dialog').count(), 0);
   checks++;
   await page.getByRole('button', { name: '打开后台任务' }).click();
-  await page.getByRole('button', { name: '查看刮削结果' }).click();
+  await page.getByRole('button', { name: '查看补全进度' }).click();
   await page
-    .getByRole('heading', { name: '已购游戏资料', exact: true })
+    .getByRole('heading', { name: '资料自动补全', exact: true })
     .waitFor();
   checks++;
+  await settle();
   await page.screenshot({ path: `${out}/running-dark.png` });
   await page.getByRole('button', { name: '后台继续', exact: true }).click();
   assert.equal(await page.locator('.owned-metadata-dialog').count(), 0);
@@ -276,7 +290,7 @@ try {
   await page.waitForFunction(() => !window.owned.running);
   assert.deepEqual(
     await page.evaluate(() => window.owned.items.map((i) => i.status)),
-    ['completed', 'review', 'failed'],
+    ['completed', 'completed', 'failed'],
   );
   checks++;
   const requests = await page.evaluate(() => window.requests);
@@ -284,7 +298,7 @@ try {
     requests
       .filter((r) => r.command === 'search_metadata')
       .map((r) => r.payload.providers[0]),
-    ['vndb', 'bangumi', 'vndb', 'bangumi', 'vndb', 'bangumi'],
+    ['vndb', 'bangumi', 'vndb', 'vndb', 'bangumi'],
   );
   checks++;
   assert.equal(
@@ -302,18 +316,36 @@ try {
   );
   checks++;
   await page.getByRole('button', { name: '打开后台任务' }).click();
-  await page.getByRole('button', { name: '查看刮削结果' }).click();
-  await page.getByRole('button', { name: /月光落在森林里.*待确认/ }).click();
+  await page.getByRole('button', { name: '查看补全进度' }).click();
+  assert.equal(
+    await page
+      .locator('.owned-metadata-dialog input, .owned-metadata-dialog form')
+      .count(),
+    0,
+  );
+  checks++;
   assert.equal(
     await page.getByRole('button', { name: '使用此资料', exact: true }).count(),
+    0,
+  );
+  checks++;
+  assert.equal(
+    await page.evaluate(
+      () =>
+        window.requests.filter((r) => r.command === 'confirm_metadata_match')
+          .length,
+    ),
     2,
   );
   checks++;
-  await page.screenshot({ path: `${out}/review-dark.png` });
+  await settle();
+  await page.screenshot({ path: `${out}/progress-dark.png` });
   await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));
-  await page.screenshot({ path: `${out}/review-light.png` });
+  await settle();
+  await page.screenshot({ path: `${out}/progress-light.png` });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: `${out}/review-narrow.png` });
+  await settle();
+  await page.screenshot({ path: `${out}/progress-narrow.png` });
   assert(
     await page
       .locator('.owned-metadata-dialog')
@@ -331,17 +363,6 @@ try {
   );
   checks++;
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page
-    .getByRole('button', { name: '使用此资料', exact: true })
-    .first()
-    .click();
-  await page.waitForFunction(
-    () => !window.owned.running && window.owned.items[1].status === 'completed',
-  );
-  checks++;
-  await page.getByText('虚构工作室 · 海岸', { exact: true }).waitFor();
-  checks++;
-  await page.screenshot({ path: `${out}/completed-light.png` });
   await page.evaluate(() => (window.retryReady = true));
   await page.getByRole('button', { name: '重试未完成项', exact: true }).click();
   await page.waitForFunction(
@@ -377,7 +398,7 @@ try {
       2,
     ),
   );
-  console.log(`已购游戏资料界面：${checks} 项通过。截图：${out}`);
+  console.log(`自动补全进度界面：${checks} 项通过。截图：${out}`);
 } finally {
   await browser.close();
 }

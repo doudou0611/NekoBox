@@ -18,3 +18,28 @@ export function automaticCandidate(candidates: MetadataCandidate[]) {
     return null;
   return best;
 }
+
+/** Store names are authoritative: a unique exact title/alias wins over noisy scores. */
+export function automaticOwnedCandidate(
+  query: string,
+  candidates: MetadataCandidate[],
+) {
+  const normalize = (value: string) =>
+    value
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]/gu, '');
+  const key = normalize(query);
+  if (!key) return null;
+  const unique = [
+    ...new Map(
+      candidates.map((c) => [`${c.provider}:${c.remote_id}`, c]),
+    ).values(),
+  ];
+  const exact = unique.filter((c) =>
+    [c.title, c.subtitle ?? ''].some((t) => normalize(t) === key),
+  );
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
+  return automaticCandidate(unique);
+}

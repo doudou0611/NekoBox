@@ -383,7 +383,7 @@ function clearFilters() {
         class="secondary-button"
         @click="openOwnedMetadata"
       >
-        <PreviewIcon name="spark" :size="16" />已购游戏资料
+        <PreviewIcon name="spark" :size="16" />资料补全进度
       </button>
       <button
         class="secondary-button"

@@ -16,6 +16,7 @@ export interface OperationItem {
   retry?: () => void;
   progress_unit?: 'bytes';
   open_details: (() => void) | null;
+  details_label?: string;
 }
 
 export const operations = reactive<OperationItem[]>([]);

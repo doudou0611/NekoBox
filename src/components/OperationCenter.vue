@@ -147,7 +147,7 @@ function statusLabel(status: OperationItem['status']) {
                   open = false;
                 "
               >
-                查看刮削结果
+                {{ item.details_label ?? '查看刮削结果' }}
               </button>
               <button
                 v-if="

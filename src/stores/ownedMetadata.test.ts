@@ -26,7 +26,6 @@ import {
   ownedMetadata,
   queueOwnedMetadata,
   stopOwnedMetadata,
-  confirmOwnedMetadata,
   retryOwnedMetadata,
 } from './ownedMetadata';
 import { operations, activeOperationProgress } from './operations';
@@ -110,7 +109,7 @@ describe('owned metadata background workflow', () => {
     expect(operations[0].progress).toBe(1);
     expect(operations[0].open_details).toBeTypeOf('function');
   });
-  it('retains ambiguous candidates for explicit confirmation and does not repeat sync work', async () => {
+  it('skips genuinely ambiguous identities without asking for confirmation or repeating sync work', async () => {
     mocks.api.mockImplementation(async (c: string) => {
       if (c === 'get_game') return { metadata_locked: false, metadata: [] };
       if (c === 'get_metadata_sources') return sourceConfig;
@@ -120,7 +119,7 @@ describe('owned metadata background workflow', () => {
     });
     queueOwnedMetadata();
     await finished();
-    expect(ownedMetadata.items[0].status).toBe('review');
+    expect(ownedMetadata.items[0].status).toBe('no_match');
     expect(
       mocks.api.mock.calls.some(([c]) => c === 'confirm_metadata_match'),
     ).toBe(false);
@@ -128,14 +127,56 @@ describe('owned metadata background workflow', () => {
     queueOwnedMetadata();
     await finished();
     expect(mocks.api.mock.calls.length).toBe(count);
-    const item = ownedMetadata.items[0];
-    confirmOwnedMetadata(item, item.candidates[0]);
+    expect(ownedMetadata.open).toBe(false);
+  });
+  it('uses the persisted official name when the user has renamed their library entry', async () => {
+    mocks.preview.games[0].title = '我的收藏名';
+    mocks.api.mockImplementation(async (c: string) => {
+      if (c === 'get_game')
+        return {
+          metadata_locked: false,
+          metadata: [
+            {
+              provider: 'hikarifield',
+              field: 'title',
+              value: JSON.stringify('官方作品名'),
+              remote_id: '7',
+            },
+          ],
+        };
+      if (c === 'get_metadata_sources') return sourceConfig;
+      if (c === 'search_metadata') return [candidate('vndb')];
+      if (c === 'confirm_metadata_match') return {};
+    });
+    queueOwnedMetadata();
     await finished();
-    expect(item.status).toBe('completed');
+    expect(mocks.api).toHaveBeenCalledWith(
+      'search_metadata',
+      expect.objectContaining({ query: '官方作品名' }),
+      expect.anything(),
+    );
+    expect(ownedMetadata.items[0].status).toBe('completed');
+    expect(operations[0].details_label).toBe('查看补全进度');
+  });
+  it('automatically handles the unique official title among similarly named editions', async () => {
+    mocks.api.mockImplementation(async (c: string) => {
+      if (c === 'get_game') return { metadata_locked: false, metadata: [] };
+      if (c === 'get_metadata_sources') return sourceConfig;
+      if (c === 'search_metadata')
+        return [
+          candidate('vndb', 0.55),
+          { ...candidate('vndb', 1, '2'), title: '官方作品名 另一版本' },
+        ];
+      if (c === 'confirm_metadata_match') return {};
+    });
+    queueOwnedMetadata();
+    await finished();
+    expect(ownedMetadata.items[0].status).toBe('completed');
     expect(mocks.api).toHaveBeenCalledWith(
       'confirm_metadata_match',
       expect.objectContaining({ remote_id: '1', manual: false }),
     );
+    expect(ownedMetadata.open).toBe(false);
   });
   it('skips locked games and concurrent existing bindings before searching', async () => {
     mocks.api.mockResolvedValue({ metadata_locked: true, metadata: [] });

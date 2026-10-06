@@ -8,7 +8,7 @@ import {
   refreshLibrary,
   loadDetail,
 } from './library';
-import { automaticCandidate } from '../services/metadataScraper';
+import { automaticOwnedCandidate } from '../services/metadataScraper';
 import { createOperation, operations, updateOperation } from './operations';
 import type { MetadataCandidate } from '../types/domain';
 
@@ -17,7 +17,6 @@ export type OwnedMetadataStatus =
   | 'searching'
   | 'applying'
   | 'completed'
-  | 'review'
   | 'no_match'
   | 'failed'
   | 'skipped'
@@ -26,11 +25,9 @@ export interface OwnedMetadataItem {
   game_id: string;
   title: string;
   cover_url: string;
-  query: string;
   status: OwnedMetadataStatus;
   message: string;
-  candidates: MetadataCandidate[];
-  selected: MetadataCandidate | null;
+  provider: string | null;
 }
 export const ownedMetadata = reactive({
   open: false,
@@ -46,7 +43,7 @@ export const ownedMetadataStats = computed(() => ({
   processed: ownedMetadata.items.filter((i) => !active(i.status)).length,
   completed: ownedMetadata.items.filter((i) => i.status === 'completed').length,
   attention: ownedMetadata.items.filter((i) =>
-    ['review', 'no_match', 'failed', 'cancelled'].includes(i.status),
+    ['no_match', 'failed', 'cancelled'].includes(i.status),
   ).length,
 }));
 let controller: AbortController | null = null;
@@ -96,44 +93,20 @@ export function queueOwnedMetadata() {
       game_id: game.game_id,
       title: game.title,
       cover_url: game.cover_url,
-      query: game.title,
       status: 'queued',
       message: '等待补充资料',
-      candidates: [],
-      selected: null,
+      provider: null,
     });
   }
-  void runOwnedMetadata();
-}
-export function searchOwnedMetadata(item: OwnedMetadataItem) {
-  if (active(item.status) || !item.query.trim() || ownedMetadata.stopping)
-    return;
-  item.selected = null;
-  item.candidates = [];
-  item.status = 'queued';
-  item.message = '等待重新搜索';
-  void runOwnedMetadata();
-}
-export function confirmOwnedMetadata(
-  item: OwnedMetadataItem,
-  candidate: MetadataCandidate,
-) {
-  if (
-    active(item.status) ||
-    ownedMetadata.stopping ||
-    !item.candidates.includes(candidate)
-  )
-    return;
-  item.selected = candidate;
-  item.status = 'queued';
-  item.message = '等待保存所选作品资料';
   void runOwnedMetadata();
 }
 export function retryOwnedMetadata() {
   if (ownedMetadata.running) return;
   for (const item of ownedMetadata.items) {
-    if (['failed', 'cancelled'].includes(item.status)) {
+    if (['failed', 'cancelled', 'no_match'].includes(item.status)) {
       item.status = 'queued';
+      item.provider = null;
+      item.message = '等待自动重试';
     }
   }
   void runOwnedMetadata();
@@ -152,7 +125,6 @@ async function processItem(item: OwnedMetadataItem) {
   // Another window may have bound this game since it entered the queue.
   // Automatic supplementation must not replace that identity or its source order.
   if (
-    !item.selected &&
     game.metadata.some(
       (f) => f.remote_id && !['manual', 'hikarifield'].includes(f.provider),
     )
@@ -161,51 +133,62 @@ async function processItem(item: OwnedMetadataItem) {
     item.message = '已有来源资料，可在游戏详情中重新刮削';
     return;
   }
-  let candidate = item.selected;
-  if (!candidate) {
-    const config = await api('get_metadata_sources', {});
-    if (ownedMetadata.stopping) return;
-    const failures: string[] = [];
-    item.candidates = [];
-    for (const source of config.sources.filter((s) => s.enabled)) {
-      item.message = `正在搜索 ${source.provider}`;
-      progress(`${item.title} · ${item.message}`);
-      const search = new AbortController();
-      controller = search;
-      try {
-        const found = await api(
-          'search_metadata',
-          {
-            query: item.query.trim(),
-            providers: [source.provider],
-            manual: false,
-          },
-          { signal: search.signal },
-        );
-        if (ownedMetadata.stopping) return;
-        item.candidates.push(...found);
-        candidate = automaticCandidate(found);
-        if (candidate) break;
-      } catch (e) {
-        if (ownedMetadata.stopping) return;
-        failures.push(`${source.provider}：${errorText(e)}`);
-      } finally {
-        controller = null;
-      }
-    }
-    if (!candidate) {
-      item.status = item.candidates.length
-        ? 'review'
-        : failures.length
-          ? 'failed'
-          : 'no_match';
-      item.message = item.candidates.length
-        ? '请确认对应作品，避免匹配到其他版本'
-        : failures.join('；') || '未找到对应作品，可以修改关键词再搜索';
-      return;
+  let query = item.title;
+  const official = game.metadata.find(
+    (f) => f.provider === 'hikarifield' && f.field === 'title',
+  );
+  if (official) {
+    try {
+      const value: unknown = JSON.parse(official.value);
+      if (typeof value === 'string' && value.trim() && value.length <= 200)
+        query = value.trim();
+    } catch {
+      /* Historical metadata without a string value falls back to the display name. */
     }
   }
+  let candidate: MetadataCandidate | null = null;
+  const config = await api('get_metadata_sources', {});
+  if (ownedMetadata.stopping) return;
+  const failures: string[] = [];
+  let ambiguous = false;
+  for (const source of config.sources.filter((s) => s.enabled)) {
+    item.provider = source.provider;
+    item.message = `正在搜索 ${source.provider}`;
+    progress(`${item.title} · ${item.message}`);
+    const search = new AbortController();
+    controller = search;
+    try {
+      const found = await api(
+        'search_metadata',
+        {
+          query,
+          providers: [source.provider],
+          manual: false,
+        },
+        { signal: search.signal },
+      );
+      if (ownedMetadata.stopping) return;
+      candidate = automaticOwnedCandidate(query, found);
+      ambiguous ||= found.length > 0 && !candidate;
+      if (candidate) break;
+    } catch (e) {
+      if (ownedMetadata.stopping) return;
+      failures.push(`${source.provider}：${errorText(e)}`);
+    } finally {
+      controller = null;
+    }
+  }
+  if (!candidate) {
+    item.status = failures.length ? 'failed' : 'no_match';
+    item.message =
+      failures.join('；') ||
+      (ambiguous
+        ? '未找到唯一匹配，已保留原有资料并继续处理其他游戏。'
+        : '当前来源未找到对应作品，已保留官方资料。');
+    return;
+  }
   item.status = 'applying';
+  item.provider = candidate.provider;
   item.message = '正在补充简介、开发商、日期与来源资料';
   progress(`${item.title} · ${item.message}`);
   // A confirmation stages and commits metadata atomically in the backend.
@@ -218,7 +201,6 @@ async function processItem(item: OwnedMetadataItem) {
     manual: false,
   });
   item.status = 'completed';
-  item.selected = null;
   item.message =
     [match.cover_message, match.supplementation_message]
       .filter(Boolean)
@@ -241,7 +223,7 @@ async function runOwnedMetadata() {
   let operation = operations.find((i) => i.id === ownedMetadata.operation_id);
   if (!operation) {
     operation = createOperation(
-      '已购游戏 · 补充资料',
+      '已购游戏 · 自动补全',
       'scrape',
       ownedMetadata.items.length,
       openOwnedMetadata,
@@ -249,6 +231,7 @@ async function runOwnedMetadata() {
     ownedMetadata.operation_id = operation.id;
   }
   operation.completed_at = null;
+  operation.details_label = '查看补全进度';
   operation.cancel = stopOwnedMetadata;
   operation.retry = undefined;
   try {
@@ -274,7 +257,7 @@ async function runOwnedMetadata() {
     operation.cancel = undefined;
     if (
       ownedMetadata.items.some((i) =>
-        ['failed', 'cancelled'].includes(i.status),
+        ['failed', 'cancelled', 'no_match'].includes(i.status),
       )
     )
       operation.retry = retryOwnedMetadata;
