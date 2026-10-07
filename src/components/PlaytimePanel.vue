@@ -390,7 +390,7 @@ input:not([type='checkbox']) {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 8px 10px;
   font: inherit;
 }
@@ -402,7 +402,7 @@ input:not([type='checkbox']) {
 }
 .playtime-summary > div {
   padding: 20px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -504,7 +504,7 @@ figcaption {
   margin: 24px 0;
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
 }
 .playtime-fields {
@@ -538,7 +538,7 @@ figcaption {
   color: var(--text);
   padding: 16px;
   border: 1px solid var(--accent);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 @media (max-width: 800px) {
   .playtime-summary {

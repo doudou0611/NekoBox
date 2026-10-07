@@ -110,7 +110,7 @@
 }
 .workspace-field small {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .detail-workspace :is(input, select, textarea),
 .workspace-process-search input {
@@ -239,7 +239,7 @@
   overflow-wrap: anywhere;
 }
 .workspace-source small {
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--subtle);
 }
 .workspace-extra {
@@ -335,17 +335,8 @@
 .workspace-process-picker {
   margin: auto;
   width: min(720px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
-  padding: 28px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-floating);
-  animation: workspace-card-enter var(--feedback-duration) var(--ease-standard);
-}
-.workspace-process-picker::backdrop {
-  background: rgb(var(--shadow-ink) / 35%);
 }
 .workspace-process-picker header {
   display: flex;
@@ -355,7 +346,7 @@
 }
 .workspace-process-picker h2 {
   margin: 8px 0;
-  font: 25px var(--font-display);
+  font: var(--type-dialog) / 1.4 var(--font-display);
 }
 .workspace-process-picker > p {
   color: var(--muted);
@@ -413,12 +404,12 @@
 }
 .workspace-process-list small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
   overflow-wrap: anywhere;
 }
 .workspace-process-list code {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 @keyframes workspace-card-enter {
   from {

@@ -35,7 +35,7 @@ onMounted(() => dialog.value?.showModal());
 <template>
   <dialog
     ref="dialog"
-    class="hf-folder-dialog"
+    class="ui-dialog hf-folder-dialog"
     aria-labelledby="hf-folder-title"
     @cancel.prevent="close"
   >
@@ -97,19 +97,10 @@ onMounted(() => dialog.value?.showModal());
 .hf-folder-dialog {
   margin: auto;
   width: min(480px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
   overflow: auto;
   box-sizing: border-box;
-  padding: 30px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
   color: var(--text);
   background: var(--surface);
-  box-shadow: var(--shadow-modal);
-}
-.hf-folder-dialog::backdrop {
-  background: rgb(32 27 45 / 36%);
-  backdrop-filter: blur(8px);
 }
 .hf-folder-heading {
   display: flex;
@@ -127,7 +118,7 @@ onMounted(() => dialog.value?.showModal());
   color: var(--accent);
 }
 h2 {
-  font-size: 26px;
+  font-size: var(--type-dialog);
   margin: 8px 0 14px;
 }
 .hf-folder-copy {

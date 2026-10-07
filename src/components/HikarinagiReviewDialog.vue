@@ -160,7 +160,7 @@ defineExpose({ open });
   <Teleport to="body">
     <dialog
       ref="dialog"
-      class="hikari-review-dialog"
+      class="ui-dialog hikari-review-dialog"
       aria-labelledby="hikari-review-title"
       @close="closed"
       @cancel="submitting && $event.preventDefault()"
@@ -301,18 +301,9 @@ defineExpose({ open });
   inset: 0;
   margin: auto;
   width: min(580px, calc(100vw - 32px));
-  max-height: calc(100vh - 40px);
-  padding: 28px;
   overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 22px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow);
-}
-.hikari-review-dialog::backdrop {
-  background: rgb(0 0 0 / 42%);
-  backdrop-filter: blur(8px);
 }
 header {
   display: flex;
@@ -323,7 +314,7 @@ header {
 }
 h2 {
   margin: 6px 0 0;
-  font-size: 25px;
+  font-size: var(--type-dialog);
 }
 .eyebrow {
   margin: 0;

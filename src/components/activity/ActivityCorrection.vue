@@ -82,7 +82,7 @@ defineExpose({ open });
 <template>
   <dialog
     ref="dialog"
-    class="activity-correction"
+    class="ui-dialog activity-correction"
     aria-labelledby="correction-title"
     @cancel.prevent="close"
     @close="closed"
@@ -185,19 +185,8 @@ defineExpose({ open });
 <style scoped>
 .activity-correction {
   width: min(520px, calc(100vw - 40px));
-  max-height: calc(100vh - 48px);
-  padding: var(--space-24);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-modal);
-}
-.activity-correction::backdrop {
-  background: color-mix(in srgb, var(--background) 70%, transparent);
-}
-.activity-correction[open] {
-  animation: correction-enter var(--feedback-duration) var(--ease-standard) both;
 }
 .activity-correction header,
 .activity-correction footer {
@@ -207,7 +196,7 @@ defineExpose({ open });
   gap: 16px;
 }
 .activity-correction h2 {
-  font-size: 26px;
+  font-size: var(--type-dialog);
 }
 .correction-game {
   margin-top: 24px;
@@ -261,16 +250,6 @@ defineExpose({ open });
 .activity-correction .activity-error {
   color: var(--danger);
   font-size: 13px;
-}
-@keyframes correction-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 :root[data-motion='reduced'] .activity-correction[open] {
   animation: none;

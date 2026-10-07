@@ -197,7 +197,7 @@ onBeforeUnmount(() => {
     <Teleport to="body"
       ><dialog
         ref="dialog"
-        class="metadata-picker"
+        class="ui-dialog metadata-picker"
         aria-label="选择资料来源与作品"
         @close="closed"
         @cancel.prevent="!confirming && close()"
@@ -328,24 +328,16 @@ small {
   flex: 1;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface-hover);
   color: var(--text);
 }
 .metadata-picker {
   margin: auto;
   width: min(850px, calc(100vw - 40px));
-  max-height: calc(100dvh - 48px);
   overflow: auto;
-  padding: 28px;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-}
-.metadata-picker::backdrop {
-  background: #0005;
-  backdrop-filter: blur(10px);
 }
 .metadata-picker h2 {
   margin: 0;
@@ -357,7 +349,7 @@ small {
   flex-wrap: wrap;
 }
 .metadata-provider .active {
-  color: var(--accent-ink);
+  color: var(--accent-ink, var(--accent));
   background: var(--surface-hover);
 }
 .metadata-candidates {

@@ -171,7 +171,14 @@ try {
         const { preview } = await import(storeUrl);
         preview.theme = theme;
         preview.palette = palette;
-        preview.motion_preference = motion;
+        // The settings no longer expose motion choices. Exercise CSS compatibility
+        // modes directly while retaining the app's default full-motion policy.
+        document.documentElement.dataset.motion =
+          motion === 'system'
+            ? matchMedia('(prefers-reduced-motion: reduce)').matches
+              ? 'reduced'
+              : 'full'
+            : motion;
         const { global_glass_enabled } =
           await import('/src/composables/useDesktopMaterial.ts');
         global_glass_enabled.value = glass;

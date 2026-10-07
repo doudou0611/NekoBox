@@ -290,13 +290,13 @@ const fetchedTime = computed(() => {
 </template>
 <style scoped>
 .hikarinagi-wall {
-  --wall-stars: #f3a900;
+  --wall-stars: var(--accent-ink, var(--accent));
   width: 300px;
   flex: 0 0 300px;
   align-self: flex-start;
   padding: 24px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface-glass);
   color: var(--text);
 }
@@ -309,8 +309,8 @@ const fetchedTime = computed(() => {
 .wall-heading h2 {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
 }
 .wall-refresh {
   display: grid;
@@ -385,14 +385,18 @@ const fetchedTime = computed(() => {
 .wall-bar {
   width: 100%;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--accent-ink, var(--accent)) 30%,
+    transparent
+  );
 }
 .wall-bar-column.peak {
   color: var(--text);
   font-weight: 600;
 }
 .wall-bar-column.peak .wall-bar {
-  background: var(--accent);
+  background: var(--accent-ink, var(--accent));
 }
 .wall-bar-column > span {
   display: block;
@@ -407,10 +411,10 @@ const fetchedTime = computed(() => {
   min-height: 43px;
   margin-top: 20px;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text);
-  font-size: 17px;
+  font-size: var(--type-label);
   font-weight: 600;
 }
 .wall-rating-action:hover {
@@ -435,7 +439,7 @@ const fetchedTime = computed(() => {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 15px;
+  font-size: var(--type-label);
 }
 .wall-statuses dt {
   color: var(--muted);
@@ -474,7 +478,7 @@ const fetchedTime = computed(() => {
 .wall-source {
   margin-top: 18px;
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.7;
 }
 .wall-empty,

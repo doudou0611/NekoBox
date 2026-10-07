@@ -119,7 +119,7 @@
   width: min(244px, calc(100vw - 32px));
   padding: var(--space-12);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-menu);
   background: var(--surface);
   box-shadow: var(--shadow-floating);
   z-index: var(--z-modal);
@@ -163,11 +163,11 @@
   gap: 3px;
   text-align: left;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-label);
 }
 .sidebar-tool-copy small {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
   font-weight: 400;
 }
 .sidebar-tools.is-menu .account-avatar {
@@ -253,4 +253,17 @@
   .sidebar-menu-avatar {
     transition: none;
   }
+}
+
+/* Portalled task feedback uses the same floating surface as the other menus. */
+.operation-popover {
+  border-color: var(--border-strong);
+  border-radius: var(--radius-menu);
+  box-shadow: var(--shadow-floating);
+  backdrop-filter: blur(var(--overlay-blur));
+}
+.operation-popover header span,
+.operation-line span,
+.operation-popover p {
+  font-size: var(--type-caption);
 }

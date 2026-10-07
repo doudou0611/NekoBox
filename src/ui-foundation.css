@@ -1,0 +1,157 @@
+/* Shared UI roles retain the exhibition palette and editorial headings. */
+:root {
+  --font-body:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --space-6: 6px;
+  --space-14: 14px;
+  --radius-dialog: 24px;
+  --radius-control: 10px;
+  --radius-menu: 16px;
+  --type-dialog: 26px;
+  --type-label: 13px;
+  --type-caption: 11px;
+  --dialog-padding: 28px;
+  --dialog-backdrop: rgb(var(--shadow-ink) / 40%);
+}
+
+textarea {
+  font: inherit;
+}
+
+.ui-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 48px);
+  padding: var(--dialog-padding);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-dialog);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-modal);
+}
+.ui-dialog[open] {
+  animation: ui-dialog-enter var(--feedback-duration) var(--ease-standard) both;
+}
+.ui-dialog::backdrop {
+  background: var(--dialog-backdrop);
+  backdrop-filter: blur(var(--overlay-blur));
+}
+.ui-dialog h2 {
+  font-family: var(--font-display);
+  font-size: var(--type-dialog);
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ui-dialog
+  :where(input:not([type='checkbox'], [type='radio'], [type='range']), select) {
+  min-height: 42px;
+  font-size: var(--type-label);
+  font-weight: 400;
+}
+.ui-dialog
+  :where(
+    input:not([type='checkbox'], [type='radio'], [type='range']),
+    select,
+    textarea
+  ) {
+  border-radius: var(--radius-control);
+}
+.ui-dialog
+  :where(footer, .editor-actions, .dialog-actions, .dialog-actions-right) {
+  flex-wrap: wrap;
+}
+.ui-dialog :where(header, footer, form, label) {
+  min-width: 0;
+}
+
+.ui-dialog :is(.primary-button, .secondary-button, .quiet-button) {
+  font-size: var(--type-label);
+}
+.ui-dialog footer .quiet-button {
+  padding-inline: var(--space-16);
+}
+
+/* The confirmation overlay shares the native dialog shell. */
+.modal-scrim {
+  background: var(--dialog-backdrop);
+}
+.modal-scrim .preview-dialog {
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--dialog-padding);
+  border-radius: var(--radius-dialog);
+}
+.modal-scrim .preview-dialog h2 {
+  font-size: var(--type-dialog);
+  line-height: 1.4;
+}
+.modal-scrim .preview-dialog > p {
+  font-size: var(--type-label);
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.modal-scrim .dialog-actions {
+  flex-wrap: wrap;
+  margin-top: var(--space-24);
+}
+
+/* A disabled action must not appear to respond to a pointer press. */
+button:disabled:is(:hover, :active) {
+  transform: none;
+  filter: none;
+}
+
+@keyframes ui-dialog-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+:root[data-motion='light'] .ui-dialog[open] {
+  animation-name: ui-dialog-fade;
+}
+@keyframes ui-dialog-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+:root[data-motion='reduced'] .ui-dialog[open] {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog[open],
+  :root .library-context-menu {
+    animation: none;
+  }
+  .primary-button:is(:hover, :active) {
+    transform: none;
+  }
+  .modal-enter-from .preview-dialog,
+  .modal-leave-to .preview-dialog,
+  .toast-enter-from,
+  .toast-leave-to {
+    transform: none;
+  }
+}
+@media (max-width: 600px) {
+  :root {
+    --dialog-padding: 20px;
+    --type-dialog: 24px;
+  }
+  .ui-dialog {
+    max-height: calc(100dvh - 32px);
+  }
+}

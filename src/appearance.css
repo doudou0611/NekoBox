@@ -1,3 +1,5 @@
+@import './ui-foundation.css';
+
 /* Native backdrop preferences are independent of animation preferences. */
 :root {
   --desktop-main-tint: rgb(17 19 30 / 60%);

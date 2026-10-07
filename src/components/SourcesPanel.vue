@@ -145,9 +145,9 @@ watch(() => props.gameId, refresh, { immediate: true });
 .source-badge {
   padding: 4px 7px;
   border-radius: 999px;
-  background: var(--accent-soft);
+  background: var(--accent-wash);
   color: var(--accent-ink, var(--accent));
-  font-size: 10px;
+  font-size: var(--type-caption);
   letter-spacing: 0.08em;
 }
 </style>

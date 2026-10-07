@@ -615,7 +615,7 @@ function onEditorKeydown(event: KeyboardEvent) {
   <Teleport to="body">
     <dialog
       ref="editor"
-      class="group-editor"
+      class="ui-dialog group-editor"
       aria-labelledby="group-editor-title"
       @keydown.stop="onEditorKeydown"
       @close="restoreFocus"
@@ -958,17 +958,8 @@ function onEditorKeydown(event: KeyboardEvent) {
 .group-editor {
   margin: auto;
   width: min(480px, calc(100vw - 48px));
-  max-height: calc(100dvh - 48px);
-  padding: var(--space-24);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-modal);
-}
-.group-editor::backdrop {
-  background: rgb(0 0 0 / 48%);
-  backdrop-filter: blur(8px);
 }
 .editor-heading {
   margin-bottom: var(--space-20);
@@ -977,7 +968,7 @@ function onEditorKeydown(event: KeyboardEvent) {
 }
 .editor-heading h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--type-dialog);
 }
 .name-label {
   display: block;
@@ -989,7 +980,7 @@ function onEditorKeydown(event: KeyboardEvent) {
   min-height: 42px;
   padding: var(--space-8) var(--space-12);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--background);
   color: var(--text);
 }

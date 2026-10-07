@@ -62,7 +62,24 @@ try {
         if (command.startsWith('plugin:')) return null;
         const payload = args.request?.payload;
         let data;
+        const sources = {
+          sources: [
+            { provider: 'vndb', enabled: true },
+            { provider: 'bangumi', enabled: false },
+            { provider: 'hikarinagi', enabled: false },
+          ],
+        };
         switch (command) {
+          case 'get_metadata_sources':
+            data = sources;
+            break;
+          case 'begin_import_batch':
+            data = { batch_id: 'feedback-fixture', sources };
+            break;
+          case 'cancel_import_batch':
+          case 'cancel_metadata_search':
+            data = true;
+            break;
           case 'backend_status':
             data = {
               data_directory: 'C:/data',
@@ -226,8 +243,13 @@ try {
     window.__IMPORT_FEEDBACK_TEST__.manual = true;
   });
   await rows.nth(1).getByRole('button', { name: '手动匹配' }).click();
-  await dialog.getByRole('button', { name: '搜索', exact: true }).click();
-  await dialog.getByRole('button', { name: '使用', exact: true }).click();
+  const manualDialog = page.locator('.manual-match-dialog');
+  await manualDialog.getByRole('button', { name: '搜索', exact: true }).click();
+  await manualDialog.getByRole('button', { name: '使用', exact: true }).click();
+  await rows.nth(1).locator('[data-status="matched"]').waitFor();
+  assert.equal(await rows.nth(1).getAttribute('data-scraped'), 'false');
+  assert.equal(await rows.nth(1).locator('.review-success-mark').count(), 0);
+  await dialog.getByRole('button', { name: '开始刮削', exact: true }).click();
   await rows.nth(1).locator('[data-status="manual"]').waitFor();
   assert.equal(await rows.nth(1).getAttribute('data-scraped'), 'true');
   assert.equal(await rows.nth(1).locator('.review-success-mark').count(), 1);

@@ -55,7 +55,8 @@ try {
         left: mask.getBoundingClientRect().left,
         main: document.querySelector('.exhibition-main').getBoundingClientRect()
           .left,
-        tint: style.background,
+        tint: getComputedStyle(document.querySelector('.exhibition-main'))
+          .backgroundColor,
         railTint: getComputedStyle(rail).backgroundColor,
         railFilter: getComputedStyle(rail).backdropFilter,
         panelFilter: getComputedStyle(
@@ -103,7 +104,7 @@ try {
     await split.getAttribute('aria-valuemax'),
   );
   await split.dblclick();
-  assert.equal(Number(await split.getAttribute('aria-valuenow')), 38);
+  assert.equal(Number(await split.getAttribute('aria-valuenow')), 34);
   await widthHandle.press('End');
   await settle();
   assert.equal((await values()).width, 460);
@@ -139,7 +140,7 @@ try {
   );
 
   const global = page.getByRole('checkbox', {
-    name: '全局桌面模糊',
+    name: '全局模糊效果',
     exact: true,
   });
   assert.equal(
@@ -153,8 +154,11 @@ try {
     await page.evaluate((marker) => {
       document.documentElement.dataset.windowMaterial = marker;
     }, marker);
-    for (const motion of ['完整动效', '轻量动效', '减少动态效果']) {
-      await page.getByRole('button', { name: motion, exact: true }).click();
+    // Compatibility modes are CSS-only checks; the current app always defaults to full.
+    for (const motion of ['full', 'light', 'reduced']) {
+      await page.evaluate((mode) => {
+        document.documentElement.dataset.motion = mode;
+      }, motion);
       for (const all of [true, false]) {
         await global.setChecked(all);
         await settle();
@@ -170,7 +174,13 @@ try {
     }
   }
   await global.check();
-  await page.getByRole('button', { name: '完整动效', exact: true }).click();
+  assert.equal(
+    await page.getByRole('button', { name: '完整动效', exact: true }).count(),
+    0,
+  );
+  await page.evaluate(() => {
+    document.documentElement.dataset.motion = 'full';
+  });
   const backgrounds = new Set();
   for (const name of ['紫藤', '海盐', '森屿', '樱霞', '琥珀', '石墨']) {
     await page
@@ -192,8 +202,10 @@ try {
   }
   assert.equal(backgrounds.size, 6);
   await page.getByRole('button', { name: '森屿配色', exact: true }).click();
-  for (const theme of ['浅色主题', '深色主题']) {
-    await page.getByRole('button', { name: theme, exact: true }).click();
+  for (const theme of ['浅色展厅', '深色展厅']) {
+    await page
+      .getByRole('radio', { name: `主题：${theme}`, exact: true })
+      .check();
     assert.equal(
       await page.evaluate(() => document.documentElement.dataset.palette),
       'forest',
@@ -201,7 +213,7 @@ try {
     assert.equal((await values()).canvas, 'rgba(0, 0, 0, 0)');
   }
   console.log(
-    '通过：两类原生标记 × 三档动效 × 四种开关组合；六套配色与深浅外观',
+    '通过：两类原生标记 × 三档 CSS 动效 × 模糊开关；六套配色与深浅外观',
   );
   const scrollbar = await page.evaluate(() => {
     const list = document.querySelector('.groups-scroll');

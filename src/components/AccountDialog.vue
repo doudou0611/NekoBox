@@ -151,7 +151,7 @@ onUnmounted(() => {
 <template>
   <dialog
     ref="dialog"
-    class="account-dialog"
+    class="ui-dialog account-dialog"
     :data-provider="tab"
     aria-labelledby="account-title"
     @keydown="keepFocus"
@@ -426,22 +426,10 @@ onUnmounted(() => {
 .account-dialog {
   margin: auto;
   width: min(640px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
-  padding: 32px;
-  border: 1px solid var(--border-strong);
-  border-radius: 24px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-modal);
   overflow: auto;
   scrollbar-gutter: stable;
-}
-.account-dialog[open] {
-  animation: account-open 420ms var(--ease-standard) both;
-}
-.account-dialog::backdrop {
-  background: rgb(32 27 45 / 40%);
-  backdrop-filter: blur(10px);
 }
 .account-heading {
   display: flex;
@@ -452,7 +440,7 @@ onUnmounted(() => {
 }
 .account-heading h2 {
   margin: 8px 0 0;
-  font-size: 28px;
+  font-size: var(--type-dialog);
   font-weight: 500;
   letter-spacing: -0.025em;
 }
@@ -605,16 +593,6 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(-4px);
 }
-@keyframes account-open {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 :global(:root[data-motion='light'] .account-card-enter-active),
 :global(:root[data-motion='light'] .account-card-leave-active) {
   transition: opacity 120ms ease;
@@ -660,12 +638,8 @@ onUnmounted(() => {
   }
 }
 @media (max-width: 480px) {
-  .account-dialog {
-    padding: 22px;
-    border-radius: 20px;
-  }
   .account-heading h2 {
-    font-size: 25px;
+    font-size: var(--type-dialog);
   }
   .account-tabs button {
     font-size: 11px;

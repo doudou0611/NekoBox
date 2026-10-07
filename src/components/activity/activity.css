@@ -190,7 +190,7 @@
 .metric-detail {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.6;
 }
 .activity-section {
@@ -785,16 +785,16 @@
   border-radius: var(--radius-pill);
   color: var(--muted);
   padding: 2px 7px;
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 .journal-edit {
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
   padding: 5px 8px;
 }
 .journal-details {
   position: relative;
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
 }
 .journal-details summary {
@@ -803,7 +803,7 @@
 .journal-details p {
   max-width: 160px;
   margin-top: 5px;
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.7;
 }
 .journal-pagination {
@@ -834,7 +834,7 @@
 }
 .activity-date-filter button {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
   padding: 4px;
 }
@@ -843,7 +843,7 @@
   border-top: 1px solid var(--border);
   padding-top: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .activity-footnote {
   display: flex;
@@ -851,7 +851,7 @@
   justify-content: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
   text-align: center;
 }
 .activity-footnote svg {
@@ -971,7 +971,7 @@
     padding: 0 16px;
   }
   .metric-detail {
-    font-size: 9px;
+    font-size: var(--type-caption);
   }
   .activity-section {
     padding: 22px 24px;

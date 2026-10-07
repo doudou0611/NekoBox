@@ -103,7 +103,7 @@ onBeforeUnmount(() => {
   <Teleport to="body"
     ><dialog
       ref="dialog"
-      class="workspace-process-picker"
+      class="ui-dialog workspace-process-picker"
       aria-label="选择 Windows 主进程"
       @cancel.prevent="close"
     >

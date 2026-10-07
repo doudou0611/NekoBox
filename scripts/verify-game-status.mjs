@@ -337,7 +337,7 @@ try {
         radius: getComputedStyle(el).borderRadius,
         surface: getComputedStyle(el).backgroundColor,
       }));
-      assert.equal(check.radius, '18px');
+      assert.equal(check.radius, '16px');
       assert.notEqual(check.surface, 'rgba(0, 0, 0, 0)');
       await page.screenshot({
         path: resolve(evidence, `${theme}-${width}.png`),

@@ -492,7 +492,7 @@ function clearFilters() {
     <Teleport to="body">
       <dialog
         ref="groupDialog"
-        class="games-group-dialog"
+        class="ui-dialog games-group-dialog"
         aria-labelledby="add-group-title"
         @cancel="busy && $event.preventDefault()"
       >
@@ -542,7 +542,7 @@ function clearFilters() {
     <Teleport to="body">
       <dialog
         ref="renameDialog"
-        class="game-name-dialog"
+        class="ui-dialog game-name-dialog"
         aria-labelledby="game-name-title"
         @cancel.prevent="!busy && renameDialog?.close()"
         @keydown="renameKey"
@@ -613,16 +613,8 @@ function clearFilters() {
 .games-group-dialog {
   width: min(440px, calc(100vw - 48px));
   margin: auto;
-  padding: var(--space-24);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-modal);
-}
-.games-group-dialog::backdrop {
-  background: rgb(0 0 0 / 48%);
-  backdrop-filter: blur(8px);
 }
 .games-group-dialog h2 {
   margin-top: 0;
@@ -639,7 +631,7 @@ function clearFilters() {
   width: 100%;
   padding: var(--space-12);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   color: var(--text);
   background: var(--background);
 }
@@ -666,9 +658,6 @@ function clearFilters() {
 .game-name-dialog {
   margin: auto;
   width: min(440px, calc(100vw - 32px));
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
 }
@@ -681,14 +670,11 @@ function clearFilters() {
   padding: 12px;
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface-hover);
   color: var(--text);
 }
 .game-name-dialog [role='alert'] {
   color: var(--danger);
-}
-.game-name-dialog::backdrop {
-  background: #0007;
 }
 </style>

@@ -136,7 +136,7 @@ onMounted(async () => {
   </SettingsSection>
   <dialog
     ref="dialog"
-    class="transfer-dialog"
+    class="ui-dialog transfer-dialog"
     aria-labelledby="database-import-title"
     @cancel.prevent="!busy && cancelImport()"
   >
@@ -173,17 +173,12 @@ onMounted(async () => {
   inset: 0;
   margin: auto;
   width: min(580px, calc(100vw - 40px));
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 24px;
   background: var(--surface);
   color: var(--text);
 }
-.transfer-dialog::backdrop {
-  background: #11182788;
-  backdrop-filter: blur(8px);
-}
 .transfer-dialog p {
-  line-height: 1.7;
+  margin-block: var(--space-12);
+  color: var(--muted);
+  line-height: 1.8;
 }
 </style>

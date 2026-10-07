@@ -163,7 +163,7 @@ async function changeStatus(value: unknown) {
   padding: 7px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-menu);
   background: var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-floating);
@@ -182,7 +182,7 @@ async function changeStatus(value: unknown) {
   gap: 13px;
   min-height: 53px;
   padding: 9px 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-control);
   cursor: pointer;
   outline: none;
   user-select: none;
@@ -208,7 +208,7 @@ async function changeStatus(value: unknown) {
 }
 .game-status-copy small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .game-status-check {
   display: flex;

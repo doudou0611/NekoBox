@@ -899,7 +899,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <dialog
       ref="dialog"
-      class="local-import"
+      class="ui-dialog local-import"
       aria-labelledby="import-title"
       @close="!single_import && (local.import_open = false)"
       @cancel.prevent="cancelImport()"
@@ -1154,7 +1154,7 @@ onUnmounted(() => {
     </dialog>
     <dialog
       ref="single_dialog"
-      class="local-import single-import-dialog"
+      class="ui-dialog local-import single-import-dialog"
       aria-labelledby="single-import-title"
       @cancel.prevent="cancelImport()"
     >
@@ -1299,7 +1299,7 @@ onUnmounted(() => {
     </dialog>
     <dialog
       ref="manual_dialog"
-      class="local-import manual-match-dialog"
+      class="ui-dialog local-import manual-match-dialog"
       aria-label="手动匹配窗口"
       @cancel.prevent="manual_item = null"
       @close="manual_item = null"
@@ -1491,31 +1491,9 @@ onUnmounted(() => {
   inset: 0;
   margin: auto;
   width: min(1040px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
   overflow: auto;
-  padding: var(--space-32);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-modal);
-}
-.local-import[open] {
-  animation: import-dialog-reveal var(--feedback-duration) var(--ease-standard);
-}
-@keyframes import-dialog-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.local-import::backdrop {
-  background: #0008;
-  backdrop-filter: blur(8px);
 }
 .import-heading,
 .review-toolbar,
@@ -1732,7 +1710,7 @@ onUnmounted(() => {
   width: min(280px, 48vw);
   padding: 4px 7px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
 }
@@ -1819,7 +1797,7 @@ onUnmounted(() => {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
 }
@@ -1918,14 +1896,14 @@ onUnmounted(() => {
   flex: 1;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
 }
 .manual-match-toolbar select {
   padding: 8px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
 }

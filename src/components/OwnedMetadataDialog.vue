@@ -77,7 +77,7 @@ onMounted(() => dialog.value?.showModal());
 <template>
   <dialog
     ref="dialog"
-    class="owned-metadata-dialog"
+    class="ui-dialog owned-metadata-dialog"
     aria-labelledby="owned-metadata-title"
     @cancel.prevent="close"
   >
@@ -229,20 +229,10 @@ onMounted(() => dialog.value?.showModal());
 .owned-metadata-dialog {
   margin: auto;
   width: min(760px, calc(100vw - 40px));
-  max-height: calc(100dvh - 48px);
-  padding: 28px;
   overflow: auto;
   box-sizing: border-box;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
   color: var(--text);
   background: var(--surface);
-  box-shadow: var(--shadow-modal);
-  animation: owned-reveal 220ms var(--ease-standard);
-}
-.owned-metadata-dialog::backdrop {
-  background: rgb(32 27 45 / 38%);
-  backdrop-filter: blur(10px);
 }
 .owned-heading,
 .owned-heading-copy,
@@ -282,7 +272,7 @@ footer > p {
 }
 h2 {
   margin: 5px 0 0;
-  font-size: 24px;
+  font-size: var(--type-dialog);
 }
 .owned-intro {
   margin: 18px 0 22px;
@@ -345,7 +335,7 @@ h2 {
   flex-wrap: wrap;
   margin-top: 10px;
   gap: 5px 12px;
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -371,7 +361,7 @@ h2 {
   overflow-wrap: anywhere;
 }
 .owned-current small {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--muted);
 }
 .owned-current strong {
@@ -379,7 +369,7 @@ h2 {
   font-size: 13px;
 }
 .owned-current span {
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.7;
   color: var(--muted);
 }
@@ -403,7 +393,7 @@ h2 {
   font-weight: 500;
 }
 .owned-list-heading span {
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
 }
 .owned-list {
@@ -447,20 +437,20 @@ h2 {
 }
 .owned-item-copy p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.8;
   margin: 5px 0 0;
   overflow-wrap: anywhere;
 }
 .owned-source {
   color: var(--muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 .owned-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
   flex-shrink: 0;
 }
@@ -491,7 +481,7 @@ footer {
 }
 footer > p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
   gap: 6px;
   margin: 0;
 }
@@ -501,16 +491,6 @@ footer > p > svg {
 footer > div {
   gap: 8px;
   flex-shrink: 0;
-}
-@keyframes owned-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 @keyframes owned-breathe {
   0%,

@@ -123,13 +123,13 @@ function restoreFocus(event: Event) {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 12px 36px #0003;
-  animation: library-menu-in 140ms ease-out;
+  border-radius: var(--radius-menu);
+  box-shadow: var(--shadow-floating);
+  animation: library-menu-in var(--micro-duration) var(--ease-standard);
 }
 .library-context-menu-item {
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   outline: none;
   user-select: none;

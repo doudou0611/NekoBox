@@ -194,8 +194,8 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(32 27 45 / 36%);
-  backdrop-filter: blur(8px);
+  background: var(--dialog-backdrop);
+  backdrop-filter: blur(var(--overlay-blur));
 }
 .bangumi-login-dialog {
   position: relative;
@@ -204,7 +204,7 @@ onUnmounted(() => {
   overflow: auto;
   padding: 28px;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-dialog);
   background: var(--surface);
   box-shadow: var(--shadow-modal);
 }

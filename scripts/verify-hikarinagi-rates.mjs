@@ -216,6 +216,11 @@ try {
   await wall.getByRole('button', { name: '我来评分', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: '为这部作品评分' });
   await dialog.getByText(/尚未登录 Hikarinagi/).waitFor();
+  await dialog.evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations().map((animation) => animation.finished),
+    );
+  });
   const center = await dialog.boundingBox();
   assert(Math.abs(center.x + center.width / 2 - 720) < 2);
   assert(Math.abs(center.y + center.height / 2 - 500) < 2);
@@ -372,7 +377,7 @@ try {
   );
   await dialog.getByRole('button', { name: '关闭评分窗口' }).click();
   const colors = [];
-  for (const palette of ['wisteria', 'forest']) {
+  for (const palette of ['wisteria', 'forest', 'black', 'white']) {
     await page.evaluate((palette) => window.setRatesPalette(palette), palette);
     await page.waitForTimeout(50);
     const color = await wall
@@ -380,7 +385,7 @@ try {
       .evaluate((el) => ({
         actual: getComputedStyle(el).backgroundColor,
         expected: getComputedStyle(document.documentElement)
-          .getPropertyValue('--accent')
+          .getPropertyValue('--accent-ink')
           .trim(),
       }));
     const expected = await page.evaluate((hex) => {
@@ -392,9 +397,17 @@ try {
       return value;
     }, color.expected);
     assert.equal(color.actual, expected);
+    assert.equal(
+      await wall
+        .locator('.wall-stars .filled')
+        .first()
+        .evaluate((el) => getComputedStyle(el).fill),
+      expected,
+    );
     colors.push(color.actual);
   }
   assert.notEqual(colors[0], colors[1]);
+  await page.evaluate(() => window.setRatesPalette('wisteria'));
   const layouts = [];
   for (const theme of ['dark', 'light']) {
     await page.evaluate((theme) => window.setRatesTheme(theme), theme);

@@ -20,7 +20,7 @@
   color: var(--muted);
   margin-top: 8px;
   line-height: 1.7;
-  font-size: 12px;
+  font-size: var(--type-label);
 }
 .settings-v1-nav {
   position: sticky;
@@ -48,7 +48,7 @@
   color: var(--muted);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: var(--type-label);
   transition:
     background 220ms var(--ease-standard),
     color 220ms var(--ease-standard);
@@ -108,7 +108,7 @@
   font-weight: 500;
 }
 .settings-chapter-heading p {
-  font-size: 11px;
+  font-size: var(--type-small);
   color: var(--muted);
   margin-top: 4px;
 }
@@ -132,7 +132,7 @@
 .settings-v1 .settings-intro p {
   margin-top: var(--space-8);
   line-height: 1.8;
-  font-size: 11px;
+  font-size: var(--type-small);
 }
 .settings-v1 .settings-card {
   padding: var(--space-24);
@@ -144,7 +144,7 @@
   margin-bottom: 18px;
 }
 .settings-v1 .settings-explanation {
-  font-size: 11px;
+  font-size: var(--type-small);
   color: var(--muted);
   line-height: 1.9;
   margin-block: 12px;
@@ -164,13 +164,13 @@
 }
 .preference-switch strong,
 .preference-option strong {
-  font-size: 12px;
+  font-size: var(--type-label);
   font-weight: 500;
 }
 .preference-switch small,
 .preference-option small {
   display: block;
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--muted);
   line-height: 1.7;
 }
@@ -233,7 +233,7 @@
 }
 .preference-choice legend {
   padding: 0;
-  font-size: 12px;
+  font-size: var(--type-label);
   font-weight: 500;
   line-height: 20px;
   margin-bottom: var(--space-12);
@@ -295,13 +295,13 @@
   display: grid;
   gap: var(--space-8);
   align-content: start;
-  font-size: 12px;
+  font-size: var(--type-label);
   font-weight: 500;
   line-height: 20px;
   min-width: 0;
 }
 .preference-field small {
-  font-size: 10px;
+  font-size: var(--type-caption);
   font-weight: 400;
   color: var(--muted);
   line-height: 1.7;
@@ -315,7 +315,7 @@
   height: 44px;
   min-height: 44px;
   padding: 0 var(--space-12);
-  font: 400 12px / 20px var(--font-body);
+  font: 400 var(--type-label) / 20px var(--font-body);
   background: var(--surface);
   color: var(--text);
   outline-offset: 3px;
@@ -347,11 +347,11 @@
   height: 44px;
   min-height: 44px;
   padding: 0 var(--space-16);
-  font-size: 12px;
+  font-size: var(--type-label);
   line-height: 20px;
 }
 .settings-field-title {
-  font-size: 12px;
+  font-size: var(--type-label);
   line-height: 20px;
   font-weight: 500;
 }
@@ -362,7 +362,7 @@
   margin-bottom: 0;
 }
 .preference-error {
-  font-size: 12px;
+  font-size: var(--type-label);
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 7%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
@@ -405,7 +405,7 @@
   opacity: 0.7;
 }
 .preference-palette strong {
-  font-size: 10px;
+  font-size: var(--type-caption);
   font-weight: 500;
 }
 .settings-update-preview {
@@ -475,7 +475,7 @@
 .settings-checklist legend {
   padding: 0;
   margin-bottom: 12px;
-  font-size: 12px;
+  font-size: var(--type-label);
   line-height: 20px;
   font-weight: 500;
 }
@@ -605,7 +605,7 @@
 }
 .settings-note {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-small);
   line-height: 1.9;
   margin: 16px 0;
 }
@@ -614,6 +614,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--danger, var(--text));
-  font-size: 12px;
+  font-size: var(--type-label);
   margin: 16px 0;
 }

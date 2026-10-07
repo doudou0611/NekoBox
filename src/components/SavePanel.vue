@@ -971,7 +971,7 @@ function remove(s: SaveSnapshot) {
 }
 .save-kicker {
   color: var(--accent-ink, var(--accent));
-  font-size: 10px;
+  font-size: var(--type-caption);
   letter-spacing: 0.2em;
 }
 .save-heading h3 {
@@ -1190,7 +1190,7 @@ function remove(s: SaveSnapshot) {
 }
 .save-panel label small {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .save-field-label {
   display: block;
@@ -1267,7 +1267,7 @@ function remove(s: SaveSnapshot) {
   margin-bottom: var(--space-12);
 }
 .save-policy > .save-field-label small {
-  font-size: 10px;
+  font-size: var(--type-caption);
   margin-left: var(--space-8);
   color: var(--subtle);
 }
@@ -1291,7 +1291,7 @@ function remove(s: SaveSnapshot) {
 .save-retention small {
   display: block;
   margin-top: var(--space-4);
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--subtle);
 }
 .save-toggle-row input {
@@ -1361,7 +1361,7 @@ function remove(s: SaveSnapshot) {
   width: 100%;
 }
 .save-hint {
-  font-size: 10px !important;
+  font-size: var(--type-caption) !important;
 }
 .save-policy-summary {
   display: flex;
@@ -1425,7 +1425,7 @@ function remove(s: SaveSnapshot) {
   align-items: center;
   gap: var(--space-8);
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .save-composer-footer .primary-button {
   margin-left: auto;
@@ -1493,13 +1493,13 @@ function remove(s: SaveSnapshot) {
   align-items: baseline;
 }
 .save-changes li span {
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: var(--accent-ink, var(--accent));
   flex-shrink: 0;
 }
 .save-panel code {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-caption);
   overflow-wrap: anywhere;
 }
 .save-count {
@@ -1509,7 +1509,7 @@ function remove(s: SaveSnapshot) {
   padding: 2px var(--space-8);
   color: var(--accent-ink, var(--accent));
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: var(--type-caption);
   margin-left: var(--space-8);
   vertical-align: middle;
 }
@@ -1633,7 +1633,7 @@ function remove(s: SaveSnapshot) {
   overflow-wrap: anywhere;
 }
 .save-reason {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--muted);
   background: var(--surface-hover);
   border-radius: var(--radius-pill);
@@ -1645,7 +1645,7 @@ function remove(s: SaveSnapshot) {
 }
 .save-snapshot time {
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .save-snapshot-note {
   color: var(--muted);
@@ -1666,7 +1666,7 @@ function remove(s: SaveSnapshot) {
   align-items: center;
   gap: var(--space-8);
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .save-file-meta i {
   width: 3px;
@@ -1716,7 +1716,7 @@ function remove(s: SaveSnapshot) {
 .save-integrity {
   margin-top: var(--space-8);
   color: var(--subtle);
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 .save-integrity summary {
   width: fit-content;
@@ -1815,7 +1815,7 @@ function remove(s: SaveSnapshot) {
   gap: var(--space-12);
   padding-top: var(--space-20);
   color: var(--subtle);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 .save-history-empty {
   text-align: center;

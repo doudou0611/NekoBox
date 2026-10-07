@@ -131,7 +131,7 @@ async function save() {
   <Teleport to="body">
     <dialog
       ref="dialog"
-      class="sidebar-game-editor"
+      class="ui-dialog sidebar-game-editor"
       :aria-label="mode === 'rename' ? '重命名作品' : '添加到分组'"
       @close="restoreFocus"
       @cancel="busy && $event.preventDefault()"
@@ -182,17 +182,9 @@ async function save() {
 <style scoped>
 .sidebar-game-editor {
   width: min(440px, calc(100vw - 40px));
-  max-height: calc(100dvh - 48px);
   overflow: auto;
-  padding: 28px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--text);
-}
-.sidebar-game-editor::backdrop {
-  background: #0005;
-  backdrop-filter: blur(8px);
 }
 h2 {
   margin: 0 0 24px;
@@ -208,7 +200,7 @@ select {
   background: var(--surface-hover);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
 }
 footer {
   display: flex;
