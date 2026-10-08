@@ -98,6 +98,11 @@ fn options(r: &ConfigureInstallationRequest) -> Result<()> {
     }
     Ok(())
 }
+#[cfg(windows)]
+fn steam_executable() -> Result<PathBuf> {
+    external_tool(&path_text(&steam::scan::install_path()?.join("steam.exe"))?)
+}
+
 impl Backend {
     pub fn configure_installation(
         &self,
@@ -106,7 +111,18 @@ impl Backend {
         options(r)?;
         let installation = self.database()?.installation(&r.install_id)?;
         let root = absolute_directory(&installation.absolute_path)?;
-        let path = executable(&root, &r.executable_path)?;
+        let steam_launch = matches!(
+            installation.source,
+            crate::domain::protocol::InstallSource::Steam
+        );
+        if steam_launch && r.steam_app_id != installation.steam_app_id {
+            return Err(invalid("Steam 安装的 AppID 由清单确定，不能修改。"));
+        }
+        let entry = if steam_launch && r.executable_path.is_empty() {
+            String::new()
+        } else {
+            path_text(&executable(&root, &r.executable_path)?)?
+        };
         let working_directory = r
             .working_directory
             .as_ref()
@@ -114,15 +130,19 @@ impl Backend {
             .transpose()?;
         let normalized = ConfigureInstallationRequest {
             install_id: r.install_id.clone(),
-            executable_path: path_text(&path)?,
+            executable_path: entry,
             steam_app_id: r.steam_app_id.clone(),
             arguments: r.arguments.clone(),
             environment: r.environment.clone(),
             working_directory,
             main_process_name: r.main_process_name.clone(),
-            track_after_launcher_exit: r.track_after_launcher_exit,
+            track_after_launcher_exit: steam_launch || r.track_after_launcher_exit,
             idle_timeout_minutes: r.idle_timeout_minutes,
-            use_locale_emulator: r.use_locale_emulator,
+            use_locale_emulator: if steam_launch {
+                Some(false)
+            } else {
+                r.use_locale_emulator
+            },
             use_magpie: r.use_magpie,
         };
         self.database()?.save_installation(&normalized)
@@ -155,15 +175,42 @@ impl Backend {
             return Err(invalid("请等待 HIKARI FIELD 下载完成，再启动游戏。"));
         }
         let root = absolute_directory(&installation.absolute_path)?;
-        let exe = installation.executable_path.as_ref().ok_or(ServiceError(
-            ErrorCode::Conflict,
-            "请先在“启动”页选择并保存启动入口。",
-        ))?;
-        let exe = executable(&root, exe)?;
-        let config = ConfigureInstallationRequest {
+        let steam_launch = matches!(
+            installation.source,
+            crate::domain::protocol::InstallSource::Steam
+        ) && installation
+            .steam_app_id
+            .as_deref()
+            .is_some_and(|id| steam::scan::app_id(id).is_ok());
+        if steam_launch {
+            steam::scan::verify(
+                &installation.absolute_path,
+                installation.steam_app_id.as_deref().unwrap(),
+            )?;
+        }
+        let exe = if steam_launch {
+            #[cfg(windows)]
+            {
+                steam_executable()?
+            }
+            #[cfg(not(windows))]
+            {
+                return Err(ServiceError(
+                    ErrorCode::NotImplemented,
+                    "Steam 启动请在 Windows 使用。",
+                ));
+            }
+        } else {
+            let value = installation.executable_path.as_ref().ok_or(ServiceError(
+                ErrorCode::Conflict,
+                "请先在“启动”页选择并保存启动入口。",
+            ))?;
+            executable(&root, value)?
+        };
+        let mut config = ConfigureInstallationRequest {
             install_id: r.install_id.clone(),
             executable_path: path_text(&exe)?,
-            steam_app_id: installation.steam_app_id,
+            steam_app_id: installation.steam_app_id.clone(),
             arguments: installation.arguments,
             working_directory: installation.working_directory,
             environment: installation.environment,
@@ -173,6 +220,20 @@ impl Backend {
             use_locale_emulator: installation.use_locale_emulator,
             use_magpie: installation.use_magpie,
         };
+        if steam_launch {
+            let id = installation.steam_app_id.clone().unwrap_or_default();
+            let mut arguments = vec!["-silent".into()];
+            if config.arguments.is_empty() {
+                arguments.push(format!("steam://rungameid/{id}"));
+            } else {
+                arguments.extend(["-applaunch".into(), id]);
+                arguments.append(&mut config.arguments);
+            }
+            config.arguments = arguments;
+            config.use_locale_emulator = Some(false);
+            config.working_directory = Some(root.to_string_lossy().into_owned());
+            config.track_after_launcher_exit = true;
+        }
         options(&config)?;
         let preferences = app_settings::get(self)?;
         let use_le = config
@@ -230,6 +291,9 @@ impl Backend {
                 &baseline,
                 boundary,
             );
+            if steam_launch {
+                tracker.external_launcher();
+            }
             tracker.set_wait_seconds(preferences.launch_wait_seconds);
             if le.is_some() {
                 tracker.external_launcher();

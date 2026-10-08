@@ -440,7 +440,13 @@ try {
       if (scenario.startsWith('duplicate')) {
         const cards = page.locator('.review-card');
         const stats = () =>
-          page.locator('.review-stats strong').allTextContents();
+          Promise.all(
+            [
+              '.review-recognized-count',
+              '.review-pending-count',
+              '.review-scraped-count',
+            ].map((selector) => page.locator(selector).innerText()),
+          );
         const all = scenario === 'duplicate-all';
         assert.deepEqual(
           await stats(),

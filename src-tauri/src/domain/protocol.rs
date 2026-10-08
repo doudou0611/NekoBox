@@ -65,7 +65,7 @@ pub const EVENTS: [(&str, &str); 6] = [
     ("download_progress", "download:progress"),
 ];
 pub const PLANNED_COMMANDS: [&str; 0] = [];
-pub const IMPLEMENTED_COMMANDS: [&str; 126] = [
+pub const IMPLEMENTED_COMMANDS: [&str; 129] = [
     "hikarifield_account",
     "login_hikarifield",
     "logout_hikarifield",
@@ -134,6 +134,9 @@ pub const IMPLEMENTED_COMMANDS: [&str; 126] = [
     "database_transfer_status",
     "import_game",
     "preview_import",
+    "scan_steam_games",
+    "prepare_steam_import",
+    "import_steam_game",
     "update_game",
     "update_game_metadata",
     "set_metadata_lock",

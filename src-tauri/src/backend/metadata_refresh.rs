@@ -78,6 +78,56 @@ pub fn start(b: &Backend, q: Request) -> Result<Status> {
                 if let Ok(mut m) = b.metadata_refresh.lock() {
                     m.state.current = Some(detail.summary.title.clone());
                 }
+                let steam_id = detail
+                    .metadata
+                    .iter()
+                    .find(|field| field.provider == "steam" && field.field == "title")
+                    .and_then(|field| field.remote_id.clone())
+                    .or_else(|| {
+                        detail
+                            .summary
+                            .installations
+                            .iter()
+                            .find(|i| {
+                                matches!(i.source, crate::domain::protocol::InstallSource::Steam)
+                            })
+                            .and_then(|i| i.steam_app_id.clone())
+                    });
+                if let Some(steam_id) = steam_id {
+                    let expected = serde_json::to_string(&detail.metadata)
+                        .map_err(|_| invalid("资料状态无效。"))?;
+                    let mut stage = b.clone();
+                    let mut db = Database::in_memory()?;
+                    db.restore_verified_snapshot(&*b.database()?)?;
+                    stage.db = Arc::new(Mutex::new(db));
+                    let community = detail
+                        .metadata
+                        .iter()
+                        .find(|f| f.provider == "hikarinagi" && f.field == "community_binding")
+                        .and_then(|f| f.remote_id.as_deref());
+                    super::steam::confirm(
+                        &stage,
+                        &ConfirmMetadataMatchRequest {
+                            manual: false,
+                            title_hint: None,
+                            game_id: game.clone(),
+                            provider: "steam".into(),
+                            remote_id: steam_id,
+                        },
+                        community,
+                        community.is_some(),
+                    )?;
+                    if cancelled.load(Ordering::Relaxed) {
+                        return Err(ServiceError(ErrorCode::Cancelled, "更新已取消。"));
+                    }
+                    b.database()?.commit_metadata_refresh(
+                        &game,
+                        &expected,
+                        &*stage.database()?,
+                        &["steam".into()],
+                    )?;
+                    return Ok(true);
+                }
                 let bindings = b
                     .database()?
                     .list_external_sources(&game)?

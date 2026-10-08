@@ -13,6 +13,8 @@
   --type-caption: 11px;
   --dialog-padding: 28px;
   --dialog-backdrop: rgb(var(--shadow-ink) / 40%);
+  --dialog-surface: color-mix(in srgb, var(--surface) 82%, transparent);
+  --dialog-highlight: rgb(255 255 255 / 14%);
 }
 
 textarea {
@@ -29,9 +31,14 @@ textarea {
   overscroll-behavior: contain;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-dialog);
-  background: var(--surface);
+  background: var(--dialog-surface) !important;
   color: var(--text);
-  box-shadow: var(--shadow-modal);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
+  background-clip: padding-box;
+  box-shadow:
+    inset 0 1px 0 var(--dialog-highlight),
+    var(--shadow-modal);
 }
 .ui-dialog[open] {
   animation: ui-dialog-enter var(--feedback-duration) var(--ease-standard) both;
@@ -86,6 +93,20 @@ textarea {
   overscroll-behavior: contain;
   padding: var(--dialog-padding);
   border-radius: var(--radius-dialog);
+  background: var(--dialog-surface);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
+  box-shadow:
+    inset 0 1px 0 var(--dialog-highlight),
+    var(--shadow-modal);
+}
+.bangumi-login-backdrop .bangumi-login-dialog {
+  background: var(--dialog-surface);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
+  box-shadow:
+    inset 0 1px 0 var(--dialog-highlight),
+    var(--shadow-modal);
 }
 .modal-scrim .preview-dialog h2 {
   font-size: var(--type-dialog);

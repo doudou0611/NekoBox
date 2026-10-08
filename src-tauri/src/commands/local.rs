@@ -905,3 +905,23 @@ command!(
     bool,
     |b, q, _| backend::hikarifield::cancel(&b, q)
 );
+
+command!(
+    scan_steam_games,
+    backend::steam::scan::ScanRequest,
+    backend::steam::scan::ScanResult,
+    |b, q, _| backend::steam::scan::scan(&b, q)
+);
+command!(
+    import_steam_game,
+    backend::steam::ImportRequest,
+    backend::steam::ImportResult,
+    |b, q, _| backend::steam::import(&b, q)
+);
+
+command!(
+    prepare_steam_import,
+    backend::steam::PrepareRequest,
+    backend::import_metadata::Preparation,
+    |b, q, _| backend::steam::prepare(&b, q)
+);

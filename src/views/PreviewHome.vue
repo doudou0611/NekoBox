@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { installationLaunchable } from '../services/steamImport';
 import {
   computed,
   nextTick,
@@ -204,8 +205,8 @@ async function library(
 async function start(game: PreviewGame) {
   if (launching.value) return;
   const installs = desktop
-    ? local.records[game.game_id]?.installations.filter(
-        (i) => i.path_valid && i.executable_path,
+    ? local.records[game.game_id]?.installations.filter((i) =>
+        installationLaunchable(i),
       )
     : [];
   if (installs && installs.length > 1) {
@@ -889,7 +890,7 @@ onBeforeUnmount(() => {
         <TransitionGroup
           name="home-gallery"
           tag="div"
-          class="home-recommendations"
+          class="home-recommendations home-game-grid"
           ><article
             v-for="{ game, reason } in suggestions"
             :key="game.game_id"
@@ -1204,7 +1205,7 @@ onBeforeUnmount(() => {
       ><div
         v-for="(install, index) in local.records[
           installGame?.game_id ?? ''
-        ]?.installations.filter((i) => i.path_valid && i.executable_path)"
+        ]?.installations.filter((i) => installationLaunchable(i))"
         :key="install.id"
         class="home-preference-row"
       >
@@ -1213,7 +1214,11 @@ onBeforeUnmount(() => {
           <p :title="install.absolute_path">
             {{ install.absolute_path.split(/[\\/]/).at(-1) }}
           </p>
-          <small>{{ install.executable_path?.split(/[\\/]/).at(-1) }}</small>
+          <small>{{
+            install.source === 'steam'
+              ? `Steam · ${install.steam_app_id}`
+              : install.executable_path?.split(/[\\/]/).at(-1)
+          }}</small>
         </div>
         <button
           type="button"

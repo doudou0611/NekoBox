@@ -12,6 +12,7 @@ import {
   refreshLibrary,
 } from './stores/library';
 import LocalImport from './components/LocalImport.vue';
+import SteamImport from './components/SteamImport.vue';
 import { subscribeEvent } from './services/events';
 const events_abort = new AbortController();
 import { useMotionPolicy } from './composables/useMotionPolicy';
@@ -56,8 +57,10 @@ import { global_glass_enabled } from './composables/useDesktopMaterial';
 import { startBackupPolling, stopBackupPolling } from './stores/backupTasks';
 import { pollMetadataRefresh } from './stores/metadataRefresh';
 import { checkStartupUpdate, updates } from './stores/updates';
+import StartupUpdateNotice from './components/StartupUpdateNotice.vue';
 const router = useRouter();
 let playtimeTimer: ReturnType<typeof setInterval> | undefined;
+let startupUpdateTimer: ReturnType<typeof setTimeout> | undefined;
 let refreshInFlight = false;
 function setPlaytimeTimer() {
   clearInterval(playtimeTimer);
@@ -142,6 +145,9 @@ onMounted(() => {
   window.addEventListener('keydown', onShortcut);
   if (desktop)
     document.addEventListener('contextmenu', preventDesktopContextMenu);
+  // Render the library first; updates never join its startup dependency chain.
+  if (desktop)
+    startupUpdateTimer = setTimeout(() => void checkStartupUpdate(), 1500);
   void loadAppSettings()
     .then(async () => {
       if (
@@ -156,7 +162,6 @@ onMounted(() => {
         global_glass_enabled.value = appSettings.value.glass_enabled;
         void pollMetadataRefresh();
         startBackupPolling();
-        void checkStartupUpdate();
       }
       setPlaytimeTimer();
     })
@@ -199,6 +204,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   clearInterval(playtimeTimer);
+  clearTimeout(startupUpdateTimer);
   stopBackupPolling();
   stopHikariPolling();
   window.removeEventListener('keydown', onShortcut);
@@ -325,23 +331,8 @@ onUnmounted(() => {
     <div class="exhibition-main">
       <main id="main-content" class="route-stage">
         <LocalImport />
+        <SteamImport />
         <OwnedMetadataDialog v-if="ownedMetadata.open" />
-        <div
-          v-if="desktop && updates.notice && route.name !== 'settings'"
-          class="app-update-notice"
-          role="status"
-        >
-          <RouterLink :to="{ name: 'settings', query: { section: 'updates' } }"
-            >NekoBox {{ updates.status.version }} 已发布 · 查看更新</RouterLink
-          >
-          <button
-            class="quiet-button"
-            aria-label="稍后查看更新"
-            @click="updates.notice = false"
-          >
-            稍后
-          </button>
-        </div>
         <p v-if="desktop && local.error" class="page-content" role="alert">
           {{ local.error }}
           <button class="quiet-button" @click="refreshLibrary()">
@@ -363,6 +354,9 @@ onUnmounted(() => {
       </main>
     </div>
     <SharedTransitionLayer /><PreviewFeedback /><GameDragOverlay />
+    <StartupUpdateNotice
+      :visible="updates.notice && route.name !== 'settings'"
+    />
     <HikariFieldFolderDialog v-if="hikariField.folder_game" />
     <AccountDialog
       v-if="accountDialog.open"
@@ -513,24 +507,5 @@ onUnmounted(() => {
     flex-direction: row;
     padding: var(--space-8) var(--space-12);
   }
-}
-</style>
-
-<style scoped>
-.app-update-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 14px 24px 0;
-  padding: 12px 18px;
-  border-radius: 16px;
-  background: var(--accent-wash);
-  color: var(--accent-ink);
-  font-size: 13px;
-}
-.app-update-notice a {
-  color: inherit;
 }
 </style>

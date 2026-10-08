@@ -188,6 +188,55 @@ try {
     );
     await group.evaluate((d) => d.close());
   }
+  // Native material must keep desktop composition while allowing one local
+  // modal filter. Browser markers prove the CSS cascade, not the OS compositor.
+  for (const material of ['windows-acrylic', 'macos-vibrancy']) {
+    for (const theme of ['light', 'dark']) {
+      for (const motion of ['full', 'light', 'reduced']) {
+        await appearance(theme, 'wisteria', motion);
+        await page.evaluate((material) => {
+          document.documentElement.dataset.windowMaterial = material;
+          document.documentElement.dataset.globalGlass = 'on';
+        }, material);
+        await group.evaluate((d) => d.showModal());
+        const materialStyles = await group.evaluate((d) => ({
+          blur: getComputedStyle(d).backdropFilter,
+          expectedBlur: `blur(${getComputedStyle(d).getPropertyValue('--panel-blur').trim()})`,
+          backdrop: getComputedStyle(d, '::backdrop').backdropFilter,
+          main: getComputedStyle(document.querySelector('.exhibition-main'))
+            .backdropFilter,
+          canvas: getComputedStyle(document.documentElement).backgroundColor,
+          button: getComputedStyle(d.querySelector('button')).backdropFilter,
+        }));
+        assert.equal(materialStyles.blur, materialStyles.expectedBlur);
+        assert.equal(materialStyles.backdrop, 'none');
+        assert.equal(materialStyles.main, 'none');
+        assert.equal(materialStyles.canvas, 'rgba(0, 0, 0, 0)');
+        assert.equal(materialStyles.button, 'none');
+        measurements.push({ material, theme, motion, ...materialStyles });
+        await group.evaluate((d) => d.close());
+      }
+    }
+  }
+  for (const fallback of ['off', 'virtual-machine']) {
+    await page.evaluate((fallback) => {
+      const root = document.documentElement;
+      root.dataset.globalGlass = fallback === 'off' ? 'off' : 'on';
+      if (fallback === 'virtual-machine') root.dataset.renderProfile = fallback;
+    }, fallback);
+    await group.evaluate((d) => d.showModal());
+    assert.equal(
+      await group.evaluate((d) => getComputedStyle(d).backdropFilter),
+      'none',
+    );
+    await group.evaluate((d) => d.close());
+  }
+  await page.evaluate(() => {
+    const root = document.documentElement;
+    delete root.dataset.renderProfile;
+    root.dataset.windowMaterial = 'browser';
+    root.dataset.globalGlass = 'on';
+  });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await appearance('dark', 'wisteria', 'full');
   await group.evaluate((d) => d.showModal());

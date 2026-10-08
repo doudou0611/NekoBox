@@ -6,6 +6,7 @@ export interface ImportPreparation {
   provider: string;
   remote_id: string;
   translation_message: string | null;
+  supplementation_message?: string | null;
 }
 export interface PrepareImportRequest {
   manual?: boolean;

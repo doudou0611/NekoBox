@@ -1,4 +1,7 @@
 .home-v1 {
+  --home-game-min-width: 148px;
+  --home-game-max-width: 180px;
+  --home-game-gap: 20px;
   container-type: inline-size;
   container-name: home;
   padding-top: var(--space-32);
@@ -408,10 +411,20 @@
   color: var(--muted);
   padding: 16px 0;
 }
-.home-v1 .home-recommendations {
+.home-v1 .home-game-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 280px));
-  gap: 24px;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, var(--home-game-min-width)), 1fr)
+  );
+  gap: 24px var(--home-game-gap);
+}
+.home-v1 .home-game-grid > * {
+  width: 100%;
+  max-width: var(--home-game-max-width);
+  min-width: 0;
+}
+.home-v1 .home-recommendations {
   position: relative;
 }
 .home-v1 .home-recommendation {
@@ -438,7 +451,7 @@
 }
 .home-v1 .home-recommendations .card-title {
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 14px;
   color: var(--text);
   line-height: 1.6;
 }
@@ -492,8 +505,10 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 6px;
-  background: var(--surface);
+  background: var(--surface-glass);
   box-shadow: var(--shadow-floating);
+  -webkit-backdrop-filter: blur(var(--panel-blur));
+  backdrop-filter: blur(var(--panel-blur));
 }
 .home-v1 .home-rec-menu button {
   text-align: left;
@@ -847,15 +862,7 @@
     opacity: 1;
   }
 }
-@container home (max-width:1119px) {
-  .home-v1 .home-recommendations {
-    grid-template-columns: repeat(3, minmax(0, 280px));
-  }
-}
 @container home (max-width:839px) {
-  .home-v1 .home-recommendations {
-    grid-template-columns: repeat(2, minmax(0, 280px));
-  }
   .home-v1 .home-hero {
     padding: 28px;
     grid-template-columns: minmax(0, 1fr) 168px;
@@ -945,10 +952,6 @@
   }
   .home-v1 .home-counts button:nth-child(2n + 1) {
     padding-left: 0;
-  }
-  .home-v1 .home-recommendations {
-    grid-template-columns: minmax(0, 280px);
-    justify-content: center;
   }
   .home-v1 .home-panel {
     padding: 20px;

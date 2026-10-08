@@ -21,10 +21,9 @@ interface OverlayCapture {
   accent: string;
   cover_rect: TransitionRect;
   title_rect: TransitionRect;
-  font_size: number;
+  title_style: Record<string, string>;
+  title_opacity: number;
   border_radius: string;
-  color: string;
-  letter_spacing: string;
 }
 const machine = new TransitionMachine();
 export const transition_debug = reactive({
@@ -86,6 +85,7 @@ function capture(game_id: string, area?: Element): OverlayCapture | null {
   if (!game || !cover || !title) return null;
   const cover_rect = rect(cover);
   const title_rect = rect(title);
+  const title_style = getComputedStyle(title);
   if (
     cover_rect.width <= 0 ||
     cover_rect.top >= window.innerHeight ||
@@ -99,10 +99,26 @@ function capture(game_id: string, area?: Element): OverlayCapture | null {
     accent: game.accent,
     cover_rect,
     title_rect,
-    font_size: parseFloat(getComputedStyle(title).fontSize),
+    // Preserve the actual source typography and truncation; the overlay must
+    // never reflow a clamped grid title into extra lines.
+    title_style: {
+      fontFamily: title_style.fontFamily,
+      fontSize: title_style.fontSize,
+      fontWeight: title_style.fontWeight,
+      lineHeight: title_style.lineHeight,
+      letterSpacing: title_style.letterSpacing,
+      color: title_style.color,
+      display: title_style.display,
+      '-webkit-line-clamp': title_style.webkitLineClamp,
+      '-webkit-box-orient': title_style.webkitBoxOrient,
+      overflow: title_style.overflow,
+      overflowWrap: title_style.overflowWrap,
+      wordBreak: title_style.wordBreak,
+      whiteSpace: title_style.whiteSpace,
+      textOverflow: title_style.textOverflow,
+    },
+    title_opacity: parseFloat(title_style.opacity),
     border_radius: getComputedStyle(cover).borderRadius,
-    color: getComputedStyle(title).color,
-    letter_spacing: getComputedStyle(title).letterSpacing,
   };
 }
 function currentCapture(game_id: string): OverlayCapture | null {
@@ -111,14 +127,16 @@ function currentCapture(game_id: string): OverlayCapture | null {
     overlay_cover.value &&
     overlay_title.value
   ) {
-    const value = shared_overlay.value;
+    // On a quick reversal, capture the detail title in its own layout rather
+    // than resurrecting the departing grid title at its old position.
+    const value =
+      capture(
+        game_id,
+        document.querySelector('[data-detail-stage]') ?? undefined,
+      ) ?? shared_overlay.value;
     return {
       ...value,
       cover_rect: rect(overlay_cover.value),
-      title_rect: rect(overlay_title.value),
-      font_size:
-        (value.font_size * rect(overlay_title.value).width) /
-        Math.max(value.title_rect.width, 1),
     };
   }
   return capture(
@@ -154,8 +172,6 @@ function settle() {
 }
 async function animateToDestination(token: number, closing: boolean) {
   await nextTick();
-  // One frame guarantees target route and restored scroll have committed layout.
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   if (!machine.owns(token)) return;
   const game_id = machine.game_id;
   const area = closing
@@ -167,6 +183,12 @@ async function animateToDestination(token: number, closing: boolean) {
     : document.querySelector('[data-detail-stage]');
   const target_cover = game_id && area ? find('cover', game_id, area) : null;
   const target_title = game_id && area ? find('title', game_id, area) : null;
+  // Hide the incoming elements before their first painted frame, including
+  // the frame used to commit restored scroll and destination layout.
+  hide(target_cover);
+  hide(target_title);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  if (!machine.owns(token)) return;
   const duration = motionDuration(
     motion_mode.value,
     closing ? 'close' : 'open',
@@ -202,39 +224,50 @@ async function animateToDestination(token: number, closing: boolean) {
     focusDestination(!closing);
     return;
   }
-  hide(target_cover);
-  hide(target_title);
-  const title_destination = rect(target_title);
-  const title_scale =
-    parseFloat(getComputedStyle(target_title).fontSize) /
-    capture_value.font_size;
+  const source_radius = parseFloat(capture_value.border_radius);
+  const target_radius = parseFloat(getComputedStyle(target_cover).borderRadius);
+  // Counter the transform scale so equal grid/detail radii stay visually equal
+  // throughout the flight and meet the real cover without a rounding jump.
+  const cover_frames = Array.from({ length: 33 }, (_, index) => {
+    const progress = index / 32;
+    const scale = 1 + (transform.scale - 1) * progress;
+    const radius = source_radius + (target_radius - source_radius) * progress;
+    return {
+      offset: progress,
+      transform: `translate(${transform.x * progress}px, ${transform.y * progress}px) scale(${scale})`,
+      borderRadius: `${radius / scale}px`,
+    };
+  });
   const options: KeyframeAnimationOptions = {
     duration,
     easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
     fill: 'forwards',
   };
   animations = [
-    overlay_cover.value.animate(
-      [
-        {
-          transform: 'translate(0, 0) scale(1)',
-        },
-        {
-          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-        },
-      ],
-      options,
-    ),
+    overlay_cover.value.animate(cover_frames, options),
     overlay_title.value.animate(
       [
-        { transform: 'translate(0, 0) scale(1)' },
-        {
-          transform: `translate(${title_destination.left - capture_value.title_rect.left}px, ${title_destination.top - capture_value.title_rect.top}px) scale(${title_scale})`,
-        },
+        { opacity: capture_value.title_opacity, transform: 'translateY(0)' },
+        { opacity: 0, transform: 'translateY(-8px)' },
       ],
-      options,
+      { ...options, duration: duration * 0.32 },
+    ),
+    target_title.animate(
+      [
+        { opacity: 0, transform: 'translateY(12px)' },
+        { opacity: 1, transform: 'translateY(0)' },
+      ],
+      {
+        ...options,
+        delay: duration * 0.16,
+        duration: duration * 0.72,
+        fill: 'both',
+      },
     ),
   ];
+  // The backwards fill keeps this invisible during the delay. Cleanup restores
+  // the original inline visibility and cancels both title animations together.
+  target_title.style.visibility = 'visible';
   try {
     await Promise.all(animations.map((animation) => animation.finished));
   } catch {

@@ -2,7 +2,7 @@ NekoBox — Third-party notices
 
 Generated from the locked Windows x64/ARM64 Cargo dependency graphs and the installed pnpm production dependency graph.
 This inventory conservatively includes build-time and transitive packages; inclusion does not mean every listed package is linked into the executable.
-NekoBox source is licensed under Apache-2.0. Third-party components retain their own copyrights and license terms.
+NekoBox source is licensed under MIT. Third-party components retain their own copyrights and license terms.
 Unmodified MPL-2.0 crate source archives are included in licenses/sources/. Extract these gzip-compressed tar archives to obtain the corresponding source, including copyright and license headers.
 The MPL-2.0 license text is included in licenses/MPL-2.0.txt.
 

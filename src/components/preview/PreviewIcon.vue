@@ -1,6 +1,8 @@
 <script setup lang="ts">
 withDefaults(defineProps<{ name: string; size?: number }>(), { size: 20 });
 const paths: Record<string, string> = {
+  steam:
+    'M17 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8M17 5a2 2 0 1 0 0 4 2 2 0 0 0 0-4M6 13a4 4 0 1 0 0 8 4 4 0 0 0 0-8M6 15a2 2 0 1 0 0 4 2 2 0 0 0 0-4M9 14l5-5M10 17l7-6M2 15l4 2',
   folder: 'M3 6h7l2 2h9v12H3zM3 6V4h6l2 2',
   lock: 'M6 10h12v10H6zM8 10V7a4 4 0 0 1 8 0v3M12 14v2',
   home: 'M3 10 12 3l9 7M5 9v11h5v-6h4v6h5V9',

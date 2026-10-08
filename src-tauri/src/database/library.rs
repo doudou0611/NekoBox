@@ -386,7 +386,8 @@ impl Database {
                     id: i,
                     game_id: id.into(),
                     path_valid: Path::new(&path).is_dir()
-                        && exe.as_ref().is_none_or(|e| Path::new(e).is_file()),
+                        && (source == "steam"
+                            || exe.as_ref().is_none_or(|e| Path::new(e).is_file())),
                     absolute_path: path,
                     executable_path: exe,
                     source: decode(&format!("\"{source}\""))?,
@@ -704,6 +705,9 @@ impl Database {
         )?;
         Ok(())
     }
+    pub fn steam_import_conflict(&self, app_id: &str, directory: &str) -> Result<Option<String>> {
+        self.connection.query_row("SELECT game_id FROM game_installations WHERE (steam_app_id=?1 OR absolute_path=?2 COLLATE NOCASE) LIMIT 1", params![app_id, directory], |r| r.get(0)).optional().map_err(Into::into)
+    }
     pub fn import_installation(
         &mut self,
         directory: &str,
@@ -900,7 +904,7 @@ impl Database {
             return Err(backend::invalid("空闲暂停阈值必须在 1～120 分钟之间。"));
         }
         let tx = self.connection.transaction()?;
-        if tx.execute("UPDATE game_installations SET executable_path=?1,steam_app_id=?2,launch_arguments_json=?3,working_directory=?4,environment_json=?5,updated_at=?6,main_process_name=?8,track_after_launcher_exit=?9 WHERE id=?7",params![r.executable_path,steam_app_id,encode(&r.arguments)?,r.working_directory,encode(&r.environment)?,backend::now(),r.install_id,r.main_process_name,r.track_after_launcher_exit])?==0{return Err(backend::missing());}
+        if tx.execute("UPDATE game_installations SET executable_path=NULLIF(?1,''),steam_app_id=?2,launch_arguments_json=?3,working_directory=?4,environment_json=?5,updated_at=?6,main_process_name=?8,track_after_launcher_exit=?9 WHERE id=?7",params![r.executable_path,steam_app_id,encode(&r.arguments)?,r.working_directory,encode(&r.environment)?,backend::now(),r.install_id,r.main_process_name,r.track_after_launcher_exit])?==0{return Err(backend::missing());}
         tx.execute("UPDATE games SET status='not_started' WHERE id=(SELECT game_id FROM game_installations WHERE id=?) AND status='pending_confirmation'",[&r.install_id])?;
         tx.execute("INSERT INTO settings(id,key,value_json,updated_at) VALUES(?1,?2,?3,?4) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at",params![backend::id(),format!("launch.idle.{}",r.install_id),encode(&r.idle_timeout_minutes)?,backend::now()])?;
         tx.execute("INSERT INTO settings(id,key,value_json,updated_at) VALUES(?1,?2,?3,?4) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at",params![backend::id(),format!("launch.tools.{}",r.install_id),encode(&(r.use_locale_emulator,r.use_magpie))?,backend::now()])?;
@@ -1108,12 +1112,7 @@ impl Database {
             .list_games(&q)?
             .items
             .into_iter()
-            .filter(|g| {
-                !g.hidden
-                    && g.installations
-                        .iter()
-                        .any(|i| i.path_valid && i.executable_path.is_some())
-            })
+            .filter(|g| !g.hidden && g.installations.iter().any(|i| i.can_launch()))
             .take(5)
             .map(|g| g.id)
             .collect();
@@ -1234,7 +1233,7 @@ impl Database {
             let installed = game
                 .installations
                 .iter()
-                .any(|install| install.path_valid && install.executable_path.is_some());
+                .any(|install| install.can_launch());
             let official_url = self
                 .list_external_sources(&game.id)?
                 .into_iter()

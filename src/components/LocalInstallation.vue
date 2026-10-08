@@ -16,6 +16,7 @@ import PreviewIcon from './preview/PreviewIcon.vue';
 import { launchEnvironment } from '../services/detailWorkspace';
 import type { RunningProcess } from '../types/detailWorkspace';
 import type { InstallationDetails } from '../types/local';
+const isSteam = computed(() => detail.value?.source === 'steam');
 // eslint-disable-next-line vue/prop-name-casing -- Existing detail component uses IPC naming.
 const props = defineProps<{ game_id: string }>();
 const game = computed(() => local.records[props.game_id]);
@@ -214,7 +215,20 @@ function chosenProcess(process: RunningProcess, applied: boolean) {
       class="workspace-editable"
       :disabled="busy || loading || !detail || !desktop"
     >
-      <section class="workspace-card" data-launch-section="entry">
+      <section
+        v-if="isSteam"
+        class="workspace-card"
+        data-launch-section="entry"
+      >
+        <header class="workspace-card-heading">
+          <span class="workspace-number">02</span>
+          <div>
+            <h3>通过 Steam 启动</h3>
+            <p>AppID {{ steamAppId }} · 自动追踪安装目录中的游戏进程。</p>
+          </div>
+        </header>
+      </section>
+      <section v-else class="workspace-card" data-launch-section="entry">
         <header class="workspace-card-heading">
           <span class="workspace-number">02</span>
           <div>
@@ -408,8 +422,13 @@ function chosenProcess(process: RunningProcess, applied: boolean) {
           <summary>计时与启动器跟踪</summary>
           <SettingsSwitch
             v-model="trackHandoff"
+            :disabled="isSteam"
+            :description="
+              isSteam
+                ? 'Steam 安装始终跟踪实际游戏进程。'
+                : '自动跟踪本次启动后安装目录内的新游戏进程。'
+            "
             label="启动器关闭后继续跟踪游戏"
-            description="自动跟踪本次启动后安装目录内的新游戏进程。"
           /><label class="workspace-field"
             ><span>空闲计时</span
             ><select v-model.number="idleTimeout">
@@ -434,6 +453,7 @@ function chosenProcess(process: RunningProcess, applied: boolean) {
         </header>
         <div class="workspace-tool-grid">
           <SettingsChoice
+            v-if="!isSteam"
             v-model="useLE"
             label="Locale Emulator"
             :options="toolOptions"
@@ -462,7 +482,7 @@ function chosenProcess(process: RunningProcess, applied: boolean) {
       </div>
       <button
         class="secondary-button"
-        :disabled="busy || !detail?.executable_path"
+        :disabled="busy || (!detail?.executable_path && !isSteam)"
         @click="detail && launchInstallation(detail.id)"
       >
         启动此版本</button

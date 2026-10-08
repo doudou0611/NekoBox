@@ -68,6 +68,7 @@ pub struct Tracker {
     wait: std::time::Duration,
     launcher_is_game: bool,
     last_alive: std::time::Duration,
+    first_observed: Option<std::time::Duration>,
 }
 impl Tracker {
     pub fn new(root: String, main: Option<String>, baseline: &[Process], since: u64) -> Self {
@@ -81,6 +82,7 @@ impl Tracker {
             wait: std::time::Duration::from_secs(15),
             launcher_is_game: true,
             last_alive: std::time::Duration::ZERO,
+            first_observed: None,
         }
     }
     pub fn select(&mut self, identity: Identity) {
@@ -102,6 +104,7 @@ impl Tracker {
     ) -> bool {
         if let Some(selected) = self.selected {
             if processes.iter().any(|p| p.identity == selected) {
+                self.first_observed.get_or_insert(elapsed);
                 self.last_alive = elapsed;
                 return true;
             }
@@ -126,6 +129,7 @@ impl Tracker {
             || direct_main
             || (launcher_alive && self.launcher_is_game && self.main.is_none());
         if alive {
+            self.first_observed.get_or_insert(elapsed);
             self.last_alive = elapsed;
             return true;
         }
@@ -137,7 +141,12 @@ impl Tracker {
         elapsed.saturating_sub(self.last_alive) < grace
     }
     pub fn observed_duration(&self) -> std::time::Duration {
-        self.last_alive
+        if self.launcher_is_game {
+            self.last_alive
+        } else {
+            self.last_alive
+                .saturating_sub(self.first_observed.unwrap_or(self.last_alive))
+        }
     }
 }
 
@@ -245,6 +254,20 @@ mod tests {
             identity: Identity { pid, created },
             image: image.into(),
         }
+    }
+    #[test]
+    fn steam_wait_and_handoff_grace_do_not_count_as_playtime() {
+        let mut tracker = Tracker::new("C:/Games/A".into(), None, &[], 100);
+        tracker.external_launcher();
+        assert!(tracker.observe(Duration::from_secs(8), 10, true, &[]));
+        assert_eq!(tracker.observed_duration(), Duration::ZERO);
+        let game = [p(11, 101, "C:/Games/A/game.exe")];
+        assert!(tracker.observe(Duration::from_secs(12), 10, false, &game));
+        assert_eq!(tracker.observed_duration(), Duration::ZERO);
+        assert!(tracker.observe(Duration::from_secs(16), 10, false, &game));
+        assert_eq!(tracker.observed_duration(), Duration::from_secs(4));
+        assert!(!tracker.observe(Duration::from_secs(18), 10, true, &[]));
+        assert_eq!(tracker.observed_duration(), Duration::from_secs(4));
     }
     #[test]
     fn external_utilities_never_extend_the_configured_game_wait() {

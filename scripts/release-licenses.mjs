@@ -68,18 +68,21 @@ for (const platform of ['x86_64-pc-windows-msvc', 'aarch64-pc-windows-msvc']) {
     if (pkg.source) packages.set(`${pkg.name}@${pkg.version}`, pkg);
   }
 }
-const mplText = (
-  await download('https://www.mozilla.org/media/MPL/2.0/index.txt')
-).toString('utf8');
+const mplPath = resolve(root, 'licenses/MPL-2.0.txt');
+const mplText = existsSync(mplPath)
+  ? readFileSync(mplPath, 'utf8')
+  : (
+      await download('https://www.mozilla.org/media/MPL/2.0/index.txt')
+    ).toString('utf8');
 if (!mplText.includes('Mozilla Public License Version 2.0'))
   throw Error('MPL 授权文本内容异常。');
-writeFileSync(resolve(root, 'licenses/MPL-2.0.txt'), mplText);
+if (!existsSync(mplPath)) writeFileSync(mplPath, mplText);
 const sections = [
   'NekoBox — Third-party notices',
   '',
   'Generated from the locked Windows x64/ARM64 Cargo dependency graphs and the installed pnpm production dependency graph.',
   'This inventory conservatively includes build-time and transitive packages; inclusion does not mean every listed package is linked into the executable.',
-  'NekoBox source is licensed under Apache-2.0. Third-party components retain their own copyrights and license terms.',
+  'NekoBox source is licensed under MIT. Third-party components retain their own copyrights and license terms.',
   'Unmodified MPL-2.0 crate source archives are included in licenses/sources/. Extract these gzip-compressed tar archives to obtain the corresponding source, including copyright and license headers.',
   'The MPL-2.0 license text is included in licenses/MPL-2.0.txt.',
   '',
@@ -236,7 +239,7 @@ writeFileSync(output, sections.join('\n'));
 if (!statSync(output).size) throw Error('第三方授权声明为空。');
 copyFileSync(
   resolve(root, 'LICENSE'),
-  resolve(root, 'licenses/Apache-2.0.txt'),
+  resolve(root, 'licenses/MIT.txt'),
 );
 console.log(
   `授权文件已生成：${packages.size} 个 Rust 依赖、${npmCount} 个前端依赖、${mplCount} 份 MPL 源码。`,

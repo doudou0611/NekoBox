@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { desktop } from '../stores/library';
+import { desktop, preview } from '../stores/library';
+import { openOwnedMetadata } from '../stores/ownedMetadata';
 import {
   hikariField,
   loginHikariField,
@@ -50,6 +51,12 @@ async function submit() {
           @click="refreshOwnedHikariField"
         >
           {{ hikariField.busy ? '正在同步游戏库…' : '同步已购游戏' }}</button
+        ><button
+          v-if="desktop && preview.games.some((g) => g.hikari_field)"
+          class="secondary-button"
+          @click="openOwnedMetadata"
+        >
+          <PreviewIcon name="spark" :size="16" />资料补全进度</button
         ><button
           class="quiet-button"
           :disabled="hikariField.busy || downloading"

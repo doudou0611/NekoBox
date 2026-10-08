@@ -109,6 +109,27 @@ const review_stats = computed(() => importReviewStats(review_items.value));
 const scraped_count = computed(() => review_stats.value.scraped);
 const pending_count = computed(() => review_stats.value.pending);
 const selected_count = computed(() => review_stats.value.selected);
+const review_progress = computed(() => {
+  const selected = review_items.value.filter(
+    (item) => item.selected && !isImported(item),
+  );
+  const processed = selected.filter((item) =>
+    ['scraped', 'manual', 'failed', 'no_match'].includes(item.scrape_status),
+  ).length;
+  return {
+    processed,
+    total: selected.length,
+    percentage: selected.length
+      ? Math.round((processed / selected.length) * 100)
+      : 0,
+  };
+});
+const current_scrape = computed(() =>
+  review_items.value.find(
+    (item) => !isImported(item) && item.scrape_status === 'scraping',
+  ),
+);
+
 const unresolved_count = computed(
   () =>
     review_items.value.filter(
@@ -899,7 +920,13 @@ onUnmounted(() => {
   <Teleport to="body">
     <dialog
       ref="dialog"
-      class="ui-dialog local-import"
+      :class="[
+        'ui-dialog local-import',
+        {
+          'import-choice-dialog': stage === 'choice',
+          'import-review-dialog': stage === 'review',
+        },
+      ]"
       aria-labelledby="import-title"
       @close="!single_import && (local.import_open = false)"
       @cancel.prevent="cancelImport()"
@@ -922,7 +949,7 @@ onUnmounted(() => {
         </header>
         <template v-if="stage === 'choice'">
           <p class="import-lead">
-            选择一种导入方式。程序只读取目录与 PE 信息，不执行游戏文件。
+            让喜欢的作品，在这里相聚。选择适合你的导入方式。
           </p>
           <div class="import-choices" aria-label="导入方式">
             <button
@@ -943,6 +970,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="import-choice"
+              aria-label="导入游戏目录 · 批量导入"
               :disabled="busy"
               @click="chooseDirectory"
             >
@@ -950,9 +978,30 @@ onUnmounted(() => {
                 ><PreviewIcon name="games"
               /></span>
               <span>
-                <strong>导入游戏目录</strong>
-                <small>按文件夹识别多个作品，再确认刮削和启动入口</small>
+                <strong>批量导入</strong>
+                <small>导入游戏目录，批量识别作品与启动入口</small>
               </span>
+              <PreviewIcon name="arrow" :size="18" />
+            </button>
+            <button
+              type="button"
+              class="import-choice import-choice-steam"
+              :disabled="busy"
+              @click="
+                local.steam_import_open = true;
+                closeImport();
+              "
+            >
+              <span class="import-choice-icon import-choice-steam-icon"
+                ><PreviewIcon name="steam"
+              /></span>
+              <span
+                ><strong>从 Steam 导入</strong
+                ><small
+                  >扫描本机 Steam 库，使用 Steam 资料并补充 Hikarinagi
+                  安利墙</small
+                ></span
+              >
               <PreviewIcon name="arrow" :size="18" />
             </button>
           </div>
@@ -977,23 +1026,65 @@ onUnmounted(() => {
           <ul v-if="roots.length" class="review-roots" aria-label="已选择目录">
             <li v-for="root in roots" :key="root">{{ root }}</li>
           </ul>
-          <div class="review-stats" aria-label="识别统计">
-            <div>
-              <strong>{{ review_stats.recognized }}</strong
-              ><span>已识别</span>
+          <section class="review-progress-panel" aria-label="批量导入进度">
+            <div class="review-progress-heading">
+              <div>
+                <span
+                  class="review-live-dot"
+                  :class="{ running: scrape_running }"
+                  aria-hidden="true"
+                /><strong
+                  >已识别
+                  <span class="review-recognized-count">{{
+                    review_stats.recognized
+                  }}</span>
+                  部游戏</strong
+                >
+              </div>
+              <span class="review-percentage"
+                >{{ review_progress.percentage }}<small>%</small></span
+              >
+            </div>
+            <div
+              class="review-progress-track"
+              role="progressbar"
+              aria-label="已选游戏处理进度"
+              :aria-valuemin="0"
+              :aria-valuemax="review_progress.total || 1"
+              :aria-valuenow="review_progress.processed"
+              :aria-valuetext="`已处理 ${review_progress.processed} / ${review_progress.total} 部，已刮削 ${scraped_count} 部`"
+            >
+              <span :style="{ width: `${review_progress.percentage}%` }" />
+            </div>
+            <div class="review-progress-caption">
+              <span
+                >已处理 {{ review_progress.processed }} /
+                {{ review_progress.total }} 部</span
+              >
+              <span
+                >已刮削
+                <b class="review-scraped-count">{{ scraped_count }}</b> 部<span
+                  class="review-pending"
+                >
+                  · 待刮削
+                  <b class="review-pending-count">{{ pending_count }}</b>
+                  部</span
+                ></span
+              >
+            </div>
+            <div class="review-progress-bottom">
+              <p :title="current_scrape?.search_name">
+                {{
+                  current_scrape
+                    ? `正在刮削 · ${current_scrape.search_name}`
+                    : '刮削结果暂存，确认导入后加入游戏库。'
+                }}
+              </p>
               <small v-if="review_stats.imported" class="review-imported-count"
                 >已导入（{{ review_stats.imported }}）</small
               >
             </div>
-            <div>
-              <strong>{{ pending_count }}</strong
-              ><span>待刮削</span>
-            </div>
-            <div>
-              <strong>{{ scraped_count }}</strong
-              ><span>已刮削</span>
-            </div>
-          </div>
+          </section>
           <p v-if="review_loading" class="review-loading" role="status">
             正在识别文件夹与启动 EXE，请稍候…
           </p>
@@ -1016,12 +1107,21 @@ onUnmounted(() => {
               "
             >
               <div class="review-row">
-                <label class="review-select" title="是否导入">
+                <label
+                  class="review-select"
+                  :title="
+                    isImported(item) ? '已在库中，跳过重复导入' : '是否导入'
+                  "
+                >
                   <input
                     v-model="item.selected"
                     type="checkbox"
+                    :aria-label="`选择导入 ${item.search_name}`"
                     :disabled="busy || !!item.preview?.existing_game_id"
                   />
+                  <span class="review-check-mark" aria-hidden="true"
+                    ><PreviewIcon name="check" :size="14"
+                  /></span>
                 </label>
                 <label class="review-search-name">
                   <span>搜索名称</span>
@@ -1390,6 +1490,55 @@ onUnmounted(() => {
   </Teleport>
 </template>
 <style scoped>
+.local-import.import-choice-dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+.import-choice-dialog .import-choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.import-choice-dialog .import-choice {
+  position: relative;
+  padding: 22px;
+  overflow: hidden;
+  transition:
+    background 240ms ease,
+    border-color 240ms ease,
+    transform 240ms ease;
+}
+.import-choice-dialog .import-choice:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--accent-wash);
+}
+.import-choice-dialog .import-choice-icon {
+  border-radius: 14px;
+  background: var(--accent-wash);
+}
+.import-choice-dialog .import-choice strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+.import-choice-dialog .import-choice small {
+  line-height: 1.7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .local-import.import-choice-dialog .import-choice:hover:not(:disabled),
+  .local-import.import-choice-dialog .import-choice {
+    transition: none;
+    transform: none;
+  }
+}
+
+:global([data-motion='reduced'])
+  .local-import.import-choice-dialog
+  .import-choice:hover:not(:disabled),
+:global([data-motion='reduced'])
+  .local-import.import-choice-dialog
+  .import-choice {
+  transition: none;
+  transform: none;
+}
 .local-import.single-import-dialog {
   width: min(820px, calc(100vw - 32px));
 }
@@ -1599,37 +1748,145 @@ onUnmounted(() => {
   font-size: 11px;
   overflow-wrap: anywhere;
 }
-.review-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-12);
-  margin: var(--space-16) 0;
+.import-review-dialog .import-heading {
+  margin-bottom: 14px;
 }
-.review-stats div {
-  display: grid;
-  gap: 4px;
-  padding: var(--space-16);
+.local-import.import-review-dialog[open],
+.import-review-dialog > form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.import-review-dialog > form {
+  flex: 1;
+}
+.import-review-dialog > form > :not(.review-list) {
+  flex-shrink: 0;
+}
+.import-review-dialog .review-list {
+  flex: 0 1 auto;
+  min-height: 64px;
+}
+.import-review-dialog .review-toolbar {
+  margin-bottom: 8px;
+}
+.import-review-dialog .review-roots {
+  margin-bottom: 10px;
+}
+.review-progress-panel {
+  padding: 12px 18px;
+  margin: 10px 0 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-hover);
-  text-align: center;
+  background: var(--accent-wash);
 }
-.review-stats strong {
-  font-family: var(--font-display);
-  font-size: 28px;
+.review-progress-heading,
+.review-progress-heading > div,
+.review-progress-caption,
+.review-progress-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.review-progress-heading > div {
+  justify-content: flex-start;
+  gap: 9px;
+}
+.review-progress-heading strong {
+  font-size: 14px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.review-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.review-live-dot.running {
+  animation: review-progress-breathe 1.8s ease-in-out infinite;
+}
+.review-percentage {
+  font-size: 28px;
+  line-height: 1.2;
+  color: var(--accent-ink, var(--accent));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  flex-shrink: 0;
+}
+.review-percentage small {
+  font-size: 11px;
+  margin-left: 3px;
+}
+.review-progress-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  margin-top: 10px;
+}
+.review-progress-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 280ms var(--ease-standard);
+}
+.review-progress-caption {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.review-progress-caption b {
+  font-weight: 400;
+}
+.review-progress-bottom {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  gap: 8px;
+}
+.review-progress-bottom p {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .review-imported-count {
-  color: var(--muted);
   font-size: 10px;
-  line-height: 1.5;
+  flex-shrink: 0;
 }
-.review-stats span,
 .review-card-details,
 .review-card-heading p,
 .review-executable-note {
   color: var(--muted);
   font-size: 11px;
+}
+@keyframes review-progress-breathe {
+  50% {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .review-progress-track > span {
+    transition: none;
+  }
+  .review-live-dot.running {
+    animation: none;
+  }
+}
+:global([data-motion='reduced']) .review-progress-track > span {
+  transition: none;
+}
+:global([data-motion='reduced']) .review-live-dot.running {
+  animation: none;
 }
 .review-list {
   display: grid;
@@ -1683,12 +1940,75 @@ onUnmounted(() => {
   align-items: flex-start;
 }
 .review-select {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 30px;
   flex-shrink: 0;
-  color: var(--muted);
-  font-size: 11px;
+  cursor: pointer;
+}
+.review-select input {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-glass);
+  cursor: inherit;
+  transition:
+    background 180ms var(--ease-standard),
+    border-color 180ms var(--ease-standard),
+    box-shadow 180ms var(--ease-standard);
+}
+.review-select input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.review-select input:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+.review-select input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.review-select input:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.review-check-mark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent-text);
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 200ms var(--ease-standard);
+}
+.review-select input:checked + .review-check-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+.review-select input:checked:disabled + .review-check-mark {
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .review-select input,
+  .review-check-mark {
+    transition: none;
+  }
+}
+:global([data-motion='reduced']) .review-select input,
+:global([data-motion='reduced']) .review-check-mark {
+  transition: none;
 }
 .review-card[data-selected='false'] {
   opacity: 0.62;
@@ -1825,7 +2145,7 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--space-8);
   min-height: 38px;
-  min-width: 720px;
+  min-width: 0;
 }
 .review-row .review-select {
   justify-content: center;
@@ -1989,12 +2309,6 @@ onUnmounted(() => {
 @media (max-width: 620px) {
   .local-import {
     padding: var(--space-20);
-  }
-  .review-stats {
-    gap: var(--space-6);
-  }
-  .review-stats div {
-    padding: var(--space-12) var(--space-8);
   }
 }
 </style>

@@ -82,6 +82,28 @@ impl Database {
         candidates: &[ExecutableCandidate],
         snapshot: Option<&MetadataSnapshot>,
     ) -> Result<GameDetail> {
+        self.import_prepared_with(directory, title, executable, candidates, snapshot, None)
+    }
+
+    pub(crate) fn import_prepared_steam(
+        &mut self,
+        directory: &str,
+        title: &str,
+        app_id: &str,
+        snapshot: Option<&MetadataSnapshot>,
+    ) -> Result<GameDetail> {
+        self.import_prepared_with(directory, title, None, &[], snapshot, Some(app_id))
+    }
+
+    fn import_prepared_with(
+        &mut self,
+        directory: &str,
+        title: &str,
+        executable: Option<&str>,
+        candidates: &[ExecutableCandidate],
+        snapshot: Option<&MetadataSnapshot>,
+        steam_app_id: Option<&str>,
+    ) -> Result<GameDetail> {
         let title = snapshot.map_or(title, |value| value.title.as_str()).trim();
         if title.is_empty() || title.chars().count() > 200 {
             return Err(backend::invalid("作品名称需要 1～200 个字符。"));
@@ -97,8 +119,24 @@ impl Database {
                 "该路径已在游戏库中，请刷新识别列表。",
             ));
         }
+        if let Some(app_id) = steam_app_id {
+            if tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM game_installations WHERE steam_app_id=?)",
+                [app_id],
+                |r| r.get::<_, bool>(0),
+            )? {
+                return Err(ServiceError(
+                    ErrorCode::Conflict,
+                    "该 Steam 游戏已在库中，请刷新列表。",
+                ));
+            }
+        }
         if let Some(snapshot) = snapshot {
-            for field in &snapshot.fields {
+            for field in snapshot
+                .fields
+                .iter()
+                .filter(|field| field.field != "community_binding")
+            {
                 if tx.query_row("SELECT EXISTS(SELECT 1 FROM metadata_records WHERE provider=?1 AND remote_id=?2)", params![field.provider,field.remote_id], |r| r.get::<_, bool>(0))? {
                     return Err(ServiceError(ErrorCode::Conflict,"该作品资料已经绑定到库内游戏，请排除重复项。"));
                 }
@@ -110,7 +148,7 @@ impl Database {
             .file_name()
             .unwrap_or_default()
             .to_string_lossy();
-        let status = if executable.is_some() {
+        let status = if executable.is_some() || steam_app_id.is_some() {
             "not_started"
         } else {
             "pending_confirmation"
@@ -122,6 +160,9 @@ impl Database {
         let evidence =
             serde_json::to_string(candidates).map_err(|_| backend::invalid("入口候选无效。"))?;
         tx.execute("INSERT INTO game_installations(id,game_id,absolute_path,folder_name,source,executable_path,working_directory,scan_status,scanned_at,product_name,company_name) VALUES(?1,?2,?3,?4,'manual',?5,?6,'scanned',?7,?8,?9)", params![install_id,game_id,directory,folder,executable,working_directory,backend::now(),candidates.first().and_then(|c|c.product_name.as_ref()),candidates.first().and_then(|c|c.company_name.as_ref())])?;
+        if let Some(app_id) = steam_app_id {
+            tx.execute("UPDATE game_installations SET source='steam',steam_app_id=?1,working_directory=?2,track_after_launcher_exit=1 WHERE id=?3", params![app_id, directory, install_id])?;
+        }
         tx.execute(
             "INSERT INTO settings(id,key,value_json) VALUES(?1,?2,?3)",
             params![
@@ -130,6 +171,12 @@ impl Database {
                 evidence
             ],
         )?;
+        if steam_app_id.is_some() && snapshot.is_none() {
+            tx.execute(
+                "INSERT INTO settings(id,key,value_json) VALUES(?1,?2,'true')",
+                params![backend::id(), format!("metadata.generated_title.{game_id}")],
+            )?;
+        }
         if let Some(snapshot) = snapshot {
             tx.execute(
                 "INSERT INTO settings(id,key,value_json) VALUES(?1,?2,'true')",

@@ -226,7 +226,7 @@ onUnmounted(() => {
     </div>
     <dialog
       ref="viewer"
-      class="screenshot-lightbox"
+      class="ui-dialog screenshot-lightbox"
       aria-label="查看图片"
       @close="selected = null"
       @click="$event.target === viewer && close()"

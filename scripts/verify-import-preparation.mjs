@@ -1,7 +1,11 @@
 // Real browser interactions with isolated IPC responses; no production database/network writes.
 import assert from 'node:assert/strict';
+import { mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { chromium } from '../.tools/browser-check/node_modules/playwright/index.mjs';
 const base = process.env.PREVIEW_URL || 'http://127.0.0.1:1420';
+const evidence = resolve('.tools/batch-import-evidence');
+mkdirSync(evidence, { recursive: true });
 assert(['127.0.0.1', 'localhost'].includes(new URL(base).hostname));
 const browser = await chromium.launch({
   headless: true,
@@ -160,6 +164,28 @@ try {
             fixture.tokens[data.preparation_id] = data;
             break;
           }
+          case 'get_metadata_sources':
+            data = {
+              sources: ['bangumi', 'hikarinagi', 'vndb'].map((provider) => ({
+                provider,
+                enabled: provider === 'bangumi',
+              })),
+            };
+            break;
+          case 'begin_import_batch':
+            data = {
+              batch_id: 'fixture-batch',
+              sources: {
+                sources: ['bangumi', 'hikarinagi', 'vndb'].map((provider) => ({
+                  provider,
+                  enabled: provider === 'bangumi',
+                })),
+              },
+            };
+            break;
+          case 'cancel_import_batch':
+            data = true;
+            break;
           case 'discard_import_metadata':
             payload.preparation_ids.forEach((id) => delete fixture.tokens[id]);
             data = true;
@@ -229,6 +255,75 @@ try {
   await dialog.getByRole('button', { name: '导入游戏目录' }).click();
   const rows = dialog.locator('.review-card');
   await rows.nth(9).waitFor();
+  const progress = dialog.getByRole('progressbar', {
+    name: '已选游戏处理进度',
+  });
+  assert.equal(
+    await dialog.locator('.review-recognized-count').innerText(),
+    '10',
+  );
+  assert.equal(await dialog.locator('.review-stats').count(), 0);
+  assert.equal(await progress.getAttribute('aria-valuenow'), '0');
+  assert.equal(await progress.getAttribute('aria-valuemax'), '10');
+  const checkbox = rows.nth(0).getByRole('checkbox');
+  assert.equal(
+    await checkbox.evaluate((el) => getComputedStyle(el).appearance),
+    'none',
+  );
+  await checkbox.focus();
+  await checkbox.press('Space');
+  assert.equal(await checkbox.isChecked(), false);
+  assert.equal(await progress.getAttribute('aria-valuemax'), '9');
+  await checkbox.press('Space');
+  assert.equal(await checkbox.isChecked(), true);
+  assert.equal(await progress.getAttribute('aria-valuemax'), '10');
+  assert.notEqual(
+    await checkbox.evaluate((el) => getComputedStyle(el).outlineStyle),
+    'none',
+  );
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate(async (theme) => {
+      const { preview } = await import('/src/preview/store.ts');
+      preview.theme = theme;
+    }, theme);
+    for (const [width, height] of [
+      [1440, 1000],
+      [1024, 768],
+      [800, 600],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(350);
+      const dimensions = await dialog
+        .locator('.review-progress-panel')
+        .boundingBox();
+      assert(
+        dimensions.height < 145,
+        `compact progress card: ${theme}/${width}`,
+      );
+      const overflow = await rows
+        .nth(0)
+        .evaluate((el) => el.scrollWidth - el.clientWidth);
+      assert(
+        overflow <= 1,
+        `row fits viewport: ${theme}/${width}, overflow ${overflow}`,
+      );
+      const confirm = await dialog
+        .getByRole('button', { name: '确认导入', exact: true })
+        .boundingBox();
+      assert(
+        confirm.y + confirm.height < height,
+        `import action stays visible: ${theme}/${width}`,
+      );
+      await page.screenshot({
+        path: resolve(evidence, `batch-${theme}-${width}.png`),
+      });
+    }
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(async () => {
+    const { preview } = await import('/src/preview/store.ts');
+    preview.theme = 'dark';
+  });
   const scrape = dialog.getByRole('button', { name: '开始刮削', exact: true });
   const calls = () => page.evaluate(() => window.__PREPARATION_TEST__.calls);
   await scrape.click();
@@ -246,6 +341,13 @@ try {
   await rows.nth(9).locator('[data-status="failed"]').waitFor();
   await scrape.waitFor({ state: 'visible' });
   assert.equal(await dialog.locator('[data-scraped="true"]').count(), 9);
+  assert.equal(await progress.getAttribute('aria-valuenow'), '10');
+  assert.equal(await dialog.locator('.review-scraped-count').innerText(), '9');
+  assert.equal(await dialog.locator('.review-pending-count').innerText(), '1');
+  await page.waitForTimeout(350);
+  await page.screenshot({
+    path: resolve(evidence, 'batch-progress-completed.png'),
+  });
   const initial = await calls();
   assert.equal(
     initial.filter((c) => c.command === 'prepare_import_metadata').length,
@@ -292,8 +394,15 @@ try {
     window.__PREPARATION_TEST__.manual = true;
   });
   await rows.nth(9).getByRole('button', { name: '手动匹配' }).click();
-  await dialog.getByRole('button', { name: '搜索', exact: true }).click();
-  await dialog.getByRole('button', { name: '使用', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '手动匹配窗口' })
+    .getByRole('button', { name: '搜索', exact: true })
+    .click();
+  await page
+    .getByRole('dialog', { name: '手动匹配窗口' })
+    .getByRole('button', { name: '使用', exact: true })
+    .click();
+  await scrape.click();
   await rows.nth(9).locator('[data-status="failed"]').waitFor();
   const beforeManualRetry = (await calls()).length;
   await scrape.click();

@@ -43,8 +43,8 @@
   :is(.navigation-rail, .exhibition-main) {
   background: var(--desktop-main-tint);
 }
-/* A transparent WebView has its blur supplied by the OS. Avoid competing CSS
-   backdrop layers when full motion promotes content to compositor surfaces. */
+/* The OS supplies desktop blur. Keep CSS filters off the main canvas and
+   full-window scrims; local modal surfaces opt in below without stacking blur. */
 :root:is(
     [data-window-material='macos-vibrancy'],
     [data-window-material='windows-acrylic']
@@ -58,6 +58,20 @@
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+/* Blur only application content behind the modal. Never promote a full-window
+   backdrop filter or enable filters on its children in the transparent WebView. */
+:root:is(
+    [data-window-material='macos-vibrancy'],
+    [data-window-material='windows-acrylic']
+  )[data-global-glass='on']:not([data-render-profile='virtual-machine'])
+  :is(
+    .ui-dialog,
+    .modal-scrim .preview-dialog,
+    .bangumi-login-backdrop .bangumi-login-dialog
+  ) {
+  -webkit-backdrop-filter: blur(var(--panel-blur)) !important;
+  backdrop-filter: blur(var(--panel-blur)) !important;
+}
 :root[data-global-glass='off'] *,
 :root[data-global-glass='off'] ::before,
 :root[data-global-glass='off'] ::after,
@@ -68,6 +82,16 @@
 :root[data-global-glass='off']
   :is(body, #app, .exhibition-app, .navigation-rail) {
   background: var(--background);
+}
+:root[data-global-glass='off']
+  :is(
+    .ui-dialog,
+    .modal-scrim .preview-dialog,
+    .bangumi-login-backdrop .bangumi-login-dialog,
+    .sidebar-quick-panel,
+    .home-v1 .home-rec-menu > div
+  ) {
+  background: var(--surface) !important;
 }
 /* Thin, rounded, theme-aware scrollbars. Native high-contrast remains available. */
 /* The optional VM profile retains the full interaction timeline, but avoids transparent

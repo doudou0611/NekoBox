@@ -315,7 +315,9 @@ function reload() {
               ? 'H'
               : item.provider === 'bangumi'
                 ? 'B'
-                : 'V'
+                : item.provider === 'steam'
+                  ? 'S'
+                  : 'V'
           }}</span>
           <div>
             <strong>{{

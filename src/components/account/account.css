@@ -12,14 +12,11 @@
   min-width: 0;
 }
 .provider-emblem {
-  flex: 0 0 54px;
+  flex: 0 0 46px;
   display: grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
-  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
-  border-radius: 18px;
-  background: linear-gradient(145deg, var(--accent-wash), var(--surface));
+  width: 46px;
+  height: 46px;
   color: var(--accent-ink, var(--accent));
 }
 .provider-intro p {
@@ -31,8 +28,8 @@
 }
 .provider-logo {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
 }
 .provider-intro h3 {

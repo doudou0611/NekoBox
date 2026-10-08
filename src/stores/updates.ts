@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 import { version } from '../../package.json';
-import { api, desktop, errorText, notify } from './library';
+import { api, desktop, errorText } from './library';
 import type { AppUpdateStatus } from '../types/updates';
 
 export const updates = reactive({
@@ -23,12 +23,15 @@ export const updates = reactive({
   notice: false,
 });
 let startupChecked = false;
+// The backend bounds each HTTP request; also bound the whole IPC operation so
+// a stalled service cannot leave the update controls busy indefinitely.
+export const UPDATE_CHECK_TIMEOUT_MS = 45_000;
 
 export async function refreshUpdateStatus() {
   if (!desktop) return;
   updates.status = await api('get_app_update_status', {});
 }
-export async function checkAppUpdate(startup = false) {
+export async function checkAppUpdate() {
   if (
     !desktop ||
     updates.busy ||
@@ -40,23 +43,31 @@ export async function checkAppUpdate(startup = false) {
   updates.notice = false;
   updates.status.phase = 'checking';
   updates.status.message = '正在连接 GitHub…';
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    updates.status = await api('check_app_update', {});
+    updates.status = await Promise.race([
+      api('check_app_update', {}),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('更新检查暂时超时，可以稍后在设置中重试。')),
+          UPDATE_CHECK_TIMEOUT_MS,
+        );
+      }),
+    ]);
     updates.notice = updates.status.phase === 'available';
-    if (startup && updates.notice)
-      notify(`发现 NekoBox ${updates.status.version}，可前往设置查看更新。`);
   } catch (cause) {
     updates.error = errorText(cause);
     updates.status.phase = 'error';
     updates.status.message = updates.error;
   } finally {
+    clearTimeout(timer);
     updates.busy = false;
   }
 }
 export async function checkStartupUpdate() {
   if (startupChecked) return;
   startupChecked = true;
-  await checkAppUpdate(true);
+  await checkAppUpdate();
 }
 export async function downloadAppUpdate() {
   if (

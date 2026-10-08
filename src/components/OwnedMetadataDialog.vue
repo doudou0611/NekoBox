@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import {
   ownedMetadata,
   ownedMetadataStats,
@@ -70,7 +70,9 @@ const opener =
   document.activeElement instanceof HTMLElement ? document.activeElement : null;
 function close() {
   ownedMetadata.open = false;
-  if (opener?.isConnected) opener.focus({ preventScroll: true });
+  void nextTick(() => {
+    if (opener?.isConnected) opener.focus({ preventScroll: true });
+  });
 }
 onMounted(() => dialog.value?.showModal());
 </script>

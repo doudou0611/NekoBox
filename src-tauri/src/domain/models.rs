@@ -12,6 +12,17 @@ pub struct GameInstallation {
     pub steam_app_id: Option<String>,
     pub path_valid: bool,
 }
+impl GameInstallation {
+    pub fn can_launch(&self) -> bool {
+        self.path_valid
+            && (self.executable_path.as_ref().is_some_and(|p| !p.is_empty())
+                || (matches!(self.source, InstallSource::Steam)
+                    && self
+                        .steam_app_id
+                        .as_deref()
+                        .is_some_and(|id| crate::backend::steam::scan::app_id(id).is_ok())))
+    }
+}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Tag {
     pub id: String,

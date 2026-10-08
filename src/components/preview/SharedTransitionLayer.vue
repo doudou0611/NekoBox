@@ -38,12 +38,12 @@ import PreviewCover from './PreviewCover.vue';
         class="shared-title-layer"
         data-shared-overlay="title"
         :style="{
+          ...shared_overlay.title_style,
           left: `${shared_overlay.title_rect.left}px`,
           top: `${shared_overlay.title_rect.top}px`,
           width: `${shared_overlay.title_rect.width}px`,
-          fontSize: `${shared_overlay.font_size}px`,
-          color: shared_overlay.color,
-          letterSpacing: shared_overlay.letter_spacing,
+          height: `${shared_overlay.title_rect.height}px`,
+          opacity: shared_overlay.title_opacity,
         }"
       >
         {{ shared_overlay.title }}

@@ -126,6 +126,17 @@ export interface HealthStatus {
   version: string;
   platform: string;
 }
+export interface SteamLocalGame {
+  app_id: string;
+  name: string;
+  directory: string;
+  library_path: string;
+  size_bytes: number;
+  existing_game_id: string | null;
+}
+export interface SteamImportResult {
+  game: GameDetail;
+}
 /** Actual implementation status is tracked in shared/protocol.json. */
 export interface CommandPayloads {
   hikarifield_account: Record<string, never>;
@@ -256,6 +267,19 @@ export interface CommandPayloads {
   confirm_database_import: { confirmation_token: string; confirmed: true };
   cancel_database_import: Record<string, never>;
   database_transfer_status: Record<string, never>;
+  scan_steam_games: { steam_path?: string };
+  prepare_steam_import: {
+    app_id: string;
+    directory: string;
+    batch_id: string;
+    match_hikarinagi: boolean;
+    hikarinagi_remote_id?: string;
+  };
+  import_steam_game: {
+    app_id: string;
+    directory: string;
+    preparation_id: string | null;
+  };
   import_game: ImportGameRequest;
   preview_import: PreviewImportRequest;
   update_game: UpdateGameRequest;
@@ -439,6 +463,13 @@ export interface CommandResults {
   confirm_database_import: DatabaseTransferStatus;
   cancel_database_import: DatabaseTransferStatus;
   database_transfer_status: DatabaseTransferStatus;
+  scan_steam_games: {
+    games: SteamLocalGame[];
+    library_count: number;
+    warnings: string[];
+  };
+  import_steam_game: SteamImportResult;
+  prepare_steam_import: ImportPreparation;
   import_game: GameDetail;
   preview_import: ImportPreviewReport;
   update_game: GameDetail;
@@ -562,6 +593,9 @@ export const IMPLEMENTED_COMMANDS = [
 
   'import_game',
   'preview_import',
+  'scan_steam_games',
+  'prepare_steam_import',
+  'import_steam_game',
   'update_game',
   'update_game_metadata',
   'set_metadata_lock',

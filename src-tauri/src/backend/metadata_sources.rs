@@ -188,6 +188,31 @@ fn apply(b: &Backend, q: &ConfirmMetadataMatchRequest) -> Result<MatchResult> {
 }
 /// Explicit binding establishes identity. Other sources need one exact title/alias match.
 pub fn confirm(b: &Backend, q: &ConfirmMetadataMatchRequest) -> Result<MatchResult> {
+    let detail = b.database()?.get_game(&q.game_id)?;
+    if q.provider == "hikarinagi"
+        && (detail
+            .metadata
+            .iter()
+            .any(|f| f.provider == "steam" && f.field == "title")
+            || detail
+                .summary
+                .installations
+                .iter()
+                .any(|i| matches!(i.source, crate::domain::protocol::InstallSource::Steam)))
+    {
+        super::steam::bind_community(b, &q.game_id, &q.remote_id)?;
+        return Ok(MatchResult {
+            game_id: q.game_id.clone(),
+            provider: q.provider.clone(),
+            remote_id: q.remote_id.clone(),
+            matched_at: now(),
+            translation_message: None,
+            supplementation_message: Some(
+                "已关联 Hikarinagi 安利墙；Steam 主资料保持优先。".into(),
+            ),
+            cover_message: None,
+        });
+    }
     confirm_with(b, q, apply, search_one, !cfg!(test))
 }
 fn confirm_with(

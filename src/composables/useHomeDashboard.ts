@@ -1,3 +1,4 @@
+import { installationLaunchable } from '../services/steamImport';
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { api, desktop, errorText, local, preview } from '../stores/library';
 import {
@@ -28,8 +29,8 @@ export function useHomeDashboard() {
   const playable = (g: PreviewGame) =>
     desktop
       ? Boolean(
-          local.records[g.game_id]?.installations.some(
-            (i) => i.path_valid && i.executable_path,
+          local.records[g.game_id]?.installations.some((i) =>
+            installationLaunchable(i),
           ),
         )
       : g.launchable !== false;

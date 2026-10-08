@@ -34,6 +34,7 @@ pub mod saves;
 pub mod scanner;
 pub mod screenshot_actions;
 pub mod sources;
+pub mod steam;
 pub mod thumbnails;
 pub mod transfer;
 pub mod translation;

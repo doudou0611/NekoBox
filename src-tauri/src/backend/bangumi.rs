@@ -298,6 +298,7 @@ pub(crate) fn cache_image_for(backend: &Backend, provider: &str, url: &str) -> R
         "vndb" => trusted_vndb_image(url),
         "hikarifield" => super::hikarifield::trusted_image(url),
         "hikarinagi" => super::hikarinagi::trusted_image(url),
+        "steam" => super::steam::trusted_steam_image(url),
         _ => false,
     };
     if !trusted {
@@ -335,6 +336,7 @@ pub(crate) fn cache_image_for(backend: &Backend, provider: &str, url: &str) -> R
             "vndb" => trusted_vndb_image(&final_url),
             "hikarifield" => super::hikarifield::trusted_image(&final_url),
             "hikarinagi" => super::hikarinagi::trusted_image(&final_url),
+            "steam" => super::steam::trusted_steam_image(&final_url),
             _ => false,
         }
     };

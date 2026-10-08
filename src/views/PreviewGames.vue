@@ -22,7 +22,6 @@ import {
 } from '../services/gameBatch';
 import VirtualGallery from '../components/preview/VirtualGallery.vue';
 import PreviewIcon from '../components/preview/PreviewIcon.vue';
-import { openOwnedMetadata } from '../stores/ownedMetadata';
 import LibraryContextMenu from '../components/LibraryContextMenu.vue';
 import {
   requestGroupAction,
@@ -378,13 +377,6 @@ function clearFilters() {
           :disabled="busy"
         />
       </label>
-      <button
-        v-if="desktop && preview.games.some((g) => g.hikari_field)"
-        class="secondary-button"
-        @click="openOwnedMetadata"
-      >
-        <PreviewIcon name="spark" :size="16" />资料补全进度
-      </button>
       <button
         class="secondary-button"
         :aria-pressed="selectionMode"

@@ -77,6 +77,8 @@ pub fn cache_image(b: &super::Backend, q: ImageRequest) -> super::Result<String>
         "vndb"
     } else if super::hikarinagi::trusted_image(&q.url) {
         "hikarinagi"
+    } else if super::steam::trusted_steam_image(&q.url) {
+        "steam"
     } else {
         return Err(super::invalid("远程图片地址不受信任。"));
     };

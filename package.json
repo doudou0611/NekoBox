@@ -1,7 +1,7 @@
 {
   "name": "galgame-manager",
-  "version": "0.2.0",
-  "license": "Apache-2.0",
+  "version": "0.3.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.4.1",
@@ -24,6 +24,7 @@
     "test:activity": "node scripts/verify-activity.mjs",
     "test:metadata-search": "node scripts/verify-metadata-search.mjs",
     "test:screenshots": "node scripts/verify-screenshots.mjs",
+    "test:steam-import": "node scripts/verify-steam-import.mjs",
     "test:import-scraping": "node scripts/verify-import-scraping.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm test && pnpm build",
     "tauri": "tauri",
@@ -43,7 +44,8 @@
     "test:account-cards": "node scripts/verify-account-cards.mjs",
     "release:manifest": "node scripts/release-update.mjs",
     "release:verify": "node scripts/release-update.mjs --verify",
-    "test:ui-style": "node scripts/verify-ui-style.mjs"
+    "test:ui-style": "node scripts/verify-ui-style.mjs",
+    "test:startup-update": "node scripts/verify-startup-update.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.0",

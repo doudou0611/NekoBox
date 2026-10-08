@@ -1,3 +1,4 @@
+import { installationLaunchable } from '../services/steamImport';
 import { reactive, toRefs } from 'vue';
 import { isTauri, convertFileSrc } from '@tauri-apps/api/core';
 import {
@@ -58,9 +59,11 @@ export const local = reactive({
   home: null as HomeSummary | null,
   scan: null as ScanReport | null,
   import_open: false,
+  steam_import_open: false,
 });
 let libraryRevision = 0;
 const libraryWrites = new Set<CommandName>([
+  'import_steam_game',
   'update_game',
   'update_game_metadata',
   'set_metadata_lock',
@@ -141,9 +144,7 @@ export function displayGame(
     last_played_order: game.last_played_at
       ? Date.parse(game.last_played_at)
       : 0,
-    launchable: game.installations.some(
-      (i) => i.path_valid && Boolean(i.executable_path),
-    ),
+    launchable: game.installations.some((i) => installationLaunchable(i)),
     playtime_seconds: game.total_playtime_seconds,
     install_count: game.installations.length,
     has_save_backup: game.has_save_backup,
@@ -566,9 +567,7 @@ export async function launchGame(id: string) {
     return;
   }
   const game = local.records[id];
-  const installs = game?.installations.filter(
-    (i) => i.path_valid && i.executable_path,
-  );
+  const installs = game?.installations.filter((i) => installationLaunchable(i));
   if (!installs?.length) {
     notify('请在详情的版本与来源中选择并保存启动入口。');
     return;
@@ -582,7 +581,7 @@ export async function launchGame(id: string) {
 export async function launchInstallation(install_id: string) {
   try {
     await api('launch_game', { install_id, options: { user_initiated: true } });
-    notify('Windows 已创建游戏进程。');
+    notify('启动请求已发送，正在检测游戏进程。');
     await refreshLibrary();
   } catch (error) {
     notify(errorText(error));
